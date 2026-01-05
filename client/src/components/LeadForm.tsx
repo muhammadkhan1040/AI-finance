@@ -70,8 +70,39 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
 
   return (
     <div className="w-full max-w-md mx-auto">
+      {/* Marketing Copy for Step 0 */}
+      {step === 0 && (
+        <div className="text-center mb-8 px-4 animate-in fade-in slide-in-from-top duration-700">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">
+            Check your rate <br/> <span className="text-[#5cffb5]">in seconds.</span>
+          </h1>
+          <p className="text-blue-100/90 font-medium text-lg mb-2">
+            Lower rates. Real savings. No BS.
+          </p>
+          <p className="text-blue-200/60 text-sm mb-6 leading-relaxed">
+            See if your deal is good — or if you can do better with our AI engine.
+          </p>
+          
+          <div className="space-y-3 max-w-xs mx-auto text-left mb-8">
+            {[
+              "Instant AI check on your current rate",
+              "Compare top lenders side by side",
+              "No impact to your credit to see options",
+              "Takes about 60 seconds to start"
+            ].map((text, i) => (
+              <div key={i} className="flex items-start gap-3 text-sm text-blue-100/80">
+                <div className="mt-1 w-4 h-4 rounded-full bg-[#5cffb5]/20 flex items-center justify-center shrink-0">
+                  <Check className="w-2.5 h-2.5 text-[#5cffb5]" />
+                </div>
+                <span>{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Progress Steps */}
-      <div className="flex items-center justify-between mb-8 px-4">
+      <div className="flex items-center justify-between mb-8 px-4 max-w-[280px] mx-auto">
         {STEPS.map((s, i) => (
           <div key={s.id} className="flex flex-col items-center relative z-10">
             <motion.div 
@@ -82,17 +113,17 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                 color: i <= step ? "#050818" : "#fff"
               }}
               className={cn(
-                "w-8 h-8 rounded-full border flex items-center justify-center text-sm font-bold transition-colors duration-300",
-                i <= step && "shadow-[0_0_15px_rgba(92,255,181,0.5)]"
+                "w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors duration-300",
+                i <= step && "shadow-[0_0_10px_rgba(92,255,181,0.3)]"
               )}
             >
-              {i < step ? <Check className="w-4 h-4" /> : i + 1}
+              {i < step ? <Check className="w-3 h-3" /> : i + 1}
             </motion.div>
-            <span className="text-xs mt-2 text-white/70">{s.title}</span>
+            <span className="text-[10px] mt-1 text-white/50">{s.title}</span>
           </div>
         ))}
         {/* Connecting Line */}
-        <div className="absolute top-4 left-0 w-full h-[1px] bg-gradient-to-r from-blue-500/20 via-blue-400/20 to-blue-500/20 -z-0 px-8">
+        <div className="absolute top-3 left-0 w-full h-[1px] bg-gradient-to-r from-blue-500/10 via-blue-400/10 to-blue-500/10 -z-0 px-12">
           <motion.div 
             className="h-full bg-gradient-to-r from-[#5cffb5] to-[#0fd0ff]"
             initial={{ width: "0%" }}
