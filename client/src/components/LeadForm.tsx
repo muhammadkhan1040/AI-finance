@@ -371,6 +371,12 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
             )}
           </AnimatePresence>
 
+          {step === 2 && (
+            <p className="text-center text-[10px] text-blue-200/50 mt-6 leading-relaxed">
+              By clicking "Get My Rates", you agree to our Terms of Use and Privacy Policy. Your information is secure.
+            </p>
+          )}
+
           <div className="mt-8 flex gap-3">
             {step > 0 && (
               <GlassButton 
@@ -405,10 +411,6 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
           </div>
         </form>
       </div>
-      
-      <p className="text-center text-xs text-blue-200/50 mt-6 max-w-xs mx-auto leading-relaxed">
-        By clicking "Get My Rates", you agree to our Terms of Use and Privacy Policy. Your information is secure.
-      </p>
     </div>
   );
 }
