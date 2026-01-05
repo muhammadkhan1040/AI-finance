@@ -34,6 +34,10 @@ export default function Home() {
       answer: "The APR includes the interest rate plus standard lender fees like processing and underwriting. We show you the total cost so there are no surprises."
     },
     {
+      question: "Are you veteran friendly?",
+      answer: "Yes. We proudly work with veterans and understand the full range of VA loan benefits. We assist with: VA purchase loans, VA refinance and IRRRL options, Understanding eligibility and entitlement, and Breaking down benefits, fees, and long-term value. Our goal is to make the process clear, straightforward, and respectful of the benefits you’ve earned."
+    },
+    {
       question: "How long does the process take?",
       answer: "You can see your initial rate quotes in about 60 seconds. If you choose to move forward, the full approval typically takes 2-3 weeks."
     }
