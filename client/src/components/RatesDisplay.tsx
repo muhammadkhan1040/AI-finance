@@ -51,6 +51,18 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
               <span className="text-2xl font-bold text-white">${rate.monthlyPayment.toLocaleString()}</span>
             </div>
             <div className="pt-4 border-t border-white/10 space-y-2">
+              {rate.lenderFee && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-blue-200/40 font-bold">Lender Fee (Buydown)</span>
+                  <span className="text-red-400 font-bold">+${rate.lenderFee.toLocaleString()}</span>
+                </div>
+              )}
+              {rate.lenderCredit && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-blue-200/40 font-bold">Lender Credit</span>
+                  <span className="text-[#5cffb5] font-bold">-${rate.lenderCredit.toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-blue-200/40">Underwriting Fee</span>
                 <span className="text-white font-medium">${rate.underwritingFee.toLocaleString()}</span>
@@ -185,6 +197,11 @@ export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
         <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
           Your Personalized Rates
         </h2>
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl py-3 px-6 inline-block mb-6">
+          <p className="text-[#0fd0ff] font-medium text-sm">
+            Analysis of 3 top lenders complete. We've matched your scenario against current rate sheets to find these options.
+          </p>
+        </div>
         <p className="text-lg text-blue-200/70 max-w-xl mx-auto">
           Based on today's market data, here are the best options we found for your scenario.
         </p>
@@ -208,7 +225,10 @@ export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
               )}
               
               <div className="flex-1 text-center md:text-left">
-                <div className="text-sm text-blue-300 mb-1">{rate.lender} • {lead.loanType.toUpperCase()}</div>
+                <div className="text-sm text-blue-300 mb-1">
+                  {rate.lender} • {lead.loanType.toUpperCase()}
+                  {rate.note && <span className="ml-2 px-2 py-0.5 rounded-md bg-white/5 text-[10px] text-blue-200/60 font-medium">{rate.note}</span>}
+                </div>
                 <div className="flex items-baseline justify-center md:justify-start gap-2">
                   <span className="text-4xl font-bold text-white">{rate.rate.toFixed(3)}%</span>
                   <span className="text-sm text-blue-200/60">Rate</span>
@@ -227,6 +247,18 @@ export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
                           <span className="text-blue-200/60">Base Rate:</span>
                           <span>{rate.rate.toFixed(3)}%</span>
                         </div>
+                        {rate.lenderFee && (
+                          <div className="flex justify-between gap-4">
+                            <span className="text-red-300">Buydown Cost:</span>
+                            <span className="text-red-300">+${rate.lenderFee.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {rate.lenderCredit && (
+                          <div className="flex justify-between gap-4">
+                            <span className="text-green-300">Lender Credit:</span>
+                            <span className="text-green-300">-${rate.lenderCredit.toLocaleString()}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between gap-4">
                           <span className="text-blue-200/60">Closing Costs:</span>
                           <span>+0.150%</span>

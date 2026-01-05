@@ -47,28 +47,33 @@ export async function registerRoutes(
 
     return [
       {
-        lender: "PRMG Agency Fixed",
+        lender: "PRMG (Base)",
         rate: finalRate,
         apr: Number(baseApr.toFixed(3)),
         monthlyPayment: Math.round(amount * (finalRate / 100 / 12) / (1 - Math.pow(1 + finalRate / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee,
+        note: "Standard base pricing"
       },
       {
-        lender: "PRMG HomeReady",
-        rate: Number((finalRate - 0.125).toFixed(3)),
-        apr: Number((baseApr - 0.125).toFixed(3)),
-        monthlyPayment: Math.round(amount * ((finalRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.125) / 100 / 12, -360))),
+        lender: "UWM (1% Buydown)",
+        rate: Number((finalRate - 0.375).toFixed(3)),
+        apr: Number((baseApr - 0.375 + 0.033).toFixed(3)), // APR slightly higher due to fee
+        monthlyPayment: Math.round(amount * ((finalRate - 0.375) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.375) / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee,
+        lenderFee: Math.round(amount * 0.01),
+        note: "Lower rate with 1% buydown"
       },
       {
-        lender: "PRMG Government FHA",
+        lender: "Flagstar (0.5% Credit)",
         rate: Number((finalRate + 0.25).toFixed(3)),
-        apr: Number((baseApr + 0.25 + 0.2).toFixed(3)), // Extra buffer for FHA MI
+        apr: Number((baseApr + 0.25 - 0.016).toFixed(3)), // APR slightly lower due to credit
         monthlyPayment: Math.round(amount * ((finalRate + 0.25) / 100 / 12) / (1 - Math.pow(1 + (finalRate + 0.25) / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee,
+        lenderCredit: Math.round(amount * 0.005),
+        note: "0.5% lender credit towards closing"
       }
     ];
   }
