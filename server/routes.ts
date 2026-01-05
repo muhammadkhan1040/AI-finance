@@ -11,8 +11,13 @@ export async function registerRoutes(
 ): Promise<Server> {
   
   // Helper to generate mock rates based on credit score
-  function getMockRates(score: string, amount: number): Rate[] {
+  function getMockRates(score: string, amount: number, term: string): Rate[] {
     let baseRate = 6.5; 
+    
+    // Adjust base rate based on term
+    if (term === '15yr') baseRate -= 0.5;
+    if (term === '10yr') baseRate -= 0.75;
+    if (term === '20yr') baseRate -= 0.25;
     
     // Map new ranges to rate adjustments
     if (score === '770+') baseRate -= 0.625;
@@ -66,7 +71,7 @@ export async function registerRoutes(
     try {
       const input = api.leads.create.input.parse(req.body);
       const lead = await storage.createLead(input);
-      const rates = getMockRates(input.creditScore, input.loanAmount);
+      const rates = getMockRates(input.creditScore, input.loanAmount, input.loanTerm);
       
       res.status(201).json({ lead, rates });
     } catch (err) {

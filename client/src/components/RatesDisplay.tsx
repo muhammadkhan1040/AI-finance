@@ -82,6 +82,14 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
               <span className="text-white capitalize font-medium">{lead.loanPurpose}</span>
             </div>
             <div className="flex justify-between text-sm">
+              <span className="text-blue-200/40">Property Type</span>
+              <span className="text-white capitalize font-medium">{lead.propertyType.replace(/_/g, ' ')}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-blue-200/40">Loan Term</span>
+              <span className="text-white font-medium">{lead.loanTerm.replace('yr', ' Year Fixed')}</span>
+            </div>
+            <div className="flex justify-between text-sm">
               <span className="text-blue-200/40">Zip Code</span>
               <span className="text-white font-medium">{lead.zipCode}</span>
             </div>
@@ -180,7 +188,7 @@ export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
                   <span className="text-sm text-blue-200/60">Rate</span>
                 </div>
                 <div className="text-xs text-blue-200/50 mt-1">
-                  APR {rate.apr.toFixed(3)}% • 30 Year Fixed
+                  APR {rate.apr.toFixed(3)}% • {lead.loanTerm.replace('yr', ' Year Fixed')}
                 </div>
               </div>
 
