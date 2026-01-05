@@ -3,6 +3,12 @@ import { type Rate, type Lead } from "@shared/schema";
 import { Check, ArrowRight, DollarSign, Calculator, Info } from "lucide-react";
 import { GlassButton } from "./ui/glass-button";
 import { useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ConfirmationViewProps {
   rate: Rate;
@@ -205,8 +211,35 @@ export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
                   <span className="text-4xl font-bold text-white">{rate.rate.toFixed(3)}%</span>
                   <span className="text-sm text-blue-200/60">Rate</span>
                 </div>
-                <div className="text-xs text-blue-200/50 mt-1">
-                  APR {rate.apr.toFixed(3)}% • {lead.loanTerm.replace('yr', ' Year Fixed')}
+                <div className="text-xs text-blue-200/50 mt-1 flex items-center justify-center md:justify-start gap-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help border-b border-dotted border-blue-200/30">
+                          APR {rate.apr.toFixed(3)}%
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-[#050818] border-blue-500/30 text-white p-3 space-y-2">
+                        <div className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-1">APR Breakdown</div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-blue-200/60">Base Rate:</span>
+                          <span>{rate.rate.toFixed(3)}%</span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-blue-200/60">Lender Fee (2.5%):</span>
+                          <span>+{(rate.apr - rate.rate - 0.15).toFixed(3)}%</span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-blue-200/60">Closing Costs:</span>
+                          <span>+0.150%</span>
+                        </div>
+                        <div className="text-[10px] text-blue-200/40 pt-1 border-t border-white/10 italic">
+                          APR reflects interest + fees spread over loan term
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <span>• {lead.loanTerm.replace('yr', ' Year Fixed')}</span>
                 </div>
               </div>
 
