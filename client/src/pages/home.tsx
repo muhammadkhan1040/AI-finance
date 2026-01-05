@@ -5,7 +5,6 @@ import { type Rate, type Lead } from "@shared/schema";
 import { motion } from "framer-motion";
 import { Zap, ShieldCheck, Clock, HelpCircle } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import equalHousingPng from "@assets/download_1767636571589.png";
 
 export default function Home() {
   const [ratesData, setRatesData] = useState<{rates: Rate[], lead: Lead} | null>(null);
@@ -172,8 +171,6 @@ export default function Home() {
             <div className="space-y-6">
               <div className="flex items-center gap-4">
                 <img src="/logo.png" alt="A-Z Home Loans" className="h-10 w-auto brightness-0 invert" />
-                <img src="/equal-housing.png" alt="Equal Housing Opportunity" className="h-10 w-auto brightness-0 invert" />
-                <img src={equalHousingPng} alt="Equal Housing Opportunity" className="h-10 w-auto brightness-0 invert" />
               </div>
               <p className="text-blue-200/40 text-xs leading-relaxed max-w-md">
                 This is a tool for informational purposes only. Rates and programs are subject to change without notice. All loans are subject to credit and underwriting approval.
