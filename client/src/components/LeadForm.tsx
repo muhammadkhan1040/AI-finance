@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertLeadSchema, type InsertLead, type Rate } from "@shared/schema";
+import { insertLeadSchema, type InsertLead, type Rate, type Lead } from "@shared/schema";
 import { useCreateLead } from "@/hooks/use-leads";
 import { GlassButton } from "./ui/glass-button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +58,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
   const onSubmit = (data: InsertLead) => {
     mutate(data, {
       onSuccess: (response) => {
-        onRatesReceived(response.rates);
+        onRatesReceived(response.rates, response.lead);
       }
     });
   };

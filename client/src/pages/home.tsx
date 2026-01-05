@@ -7,7 +7,11 @@ import { Zap, ShieldCheck, Clock, HelpCircle } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export default function Home() {
-  const [rates, setRates] = useState<Rate[] | null>(null);
+  const [ratesData, setRatesData] = useState<{rates: Rate[], lead: Lead} | null>(null);
+
+  const handleRatesReceived = (rates: Rate[], lead: Lead) => {
+    setRatesData({ rates, lead });
+  };
 
   const reviews = [
     { text: "Jerald made everything simple and fast.", author: "Sarah M.", stars: 5 },
@@ -42,7 +46,7 @@ export default function Home() {
       
       <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative z-10">
         
-        {!rates ? (
+        {!ratesData ? (
           <div className="w-full max-w-6xl mx-auto space-y-24 py-12">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               {/* Left Content */}
@@ -101,7 +105,7 @@ export default function Home() {
 
               {/* Right Form */}
               <div className="order-1 lg:order-2 w-full flex justify-center lg:justify-end">
-                <LeadForm onRatesReceived={setRates} />
+                <LeadForm onRatesReceived={handleRatesReceived} />
               </div>
             </div>
 
@@ -139,7 +143,11 @@ export default function Home() {
             </motion.section>
           </div>
         ) : (
-          <RatesDisplay rates={rates} onReset={() => setRates(null)} />
+          <RatesDisplay 
+            rates={ratesData!.rates} 
+            lead={ratesData!.lead} 
+            onReset={() => setRatesData(null)} 
+          />
         )}
 
       </main>
