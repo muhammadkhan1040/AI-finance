@@ -11,7 +11,7 @@ export async function registerRoutes(
 ): Promise<Server> {
   
   // Helper to generate mock rates based on credit score
-  function getMockRates(score: string, amount: number, term: string): Rate[] {
+  function getMockRates(score: string, amount: number, term: string | undefined): Rate[] {
     let baseRate = 6.5; 
     
     // Adjust base rate based on term

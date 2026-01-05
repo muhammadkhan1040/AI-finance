@@ -82,6 +82,10 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
               <span className="text-white capitalize font-medium">{lead.loanPurpose}</span>
             </div>
             <div className="flex justify-between text-sm">
+              <span className="text-blue-200/40">Loan Type</span>
+              <span className="text-white capitalize font-medium">{lead.loanType}</span>
+            </div>
+            <div className="flex justify-between text-sm">
               <span className="text-blue-200/40">Property Type</span>
               <span className="text-white capitalize font-medium">{lead.propertyType.replace(/_/g, ' ')}</span>
             </div>
@@ -182,7 +186,7 @@ export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
               )}
               
               <div className="flex-1 text-center md:text-left">
-                <div className="text-sm text-blue-300 mb-1">{rate.lender}</div>
+                <div className="text-sm text-blue-300 mb-1">{rate.lender} • {lead.loanType.toUpperCase()}</div>
                 <div className="flex items-baseline justify-center md:justify-start gap-2">
                   <span className="text-4xl font-bold text-white">{rate.rate.toFixed(3)}%</span>
                   <span className="text-sm text-blue-200/60">Rate</span>
