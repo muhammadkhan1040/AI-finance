@@ -45,11 +45,16 @@ export async function registerRoutes(
     // 2.5% Origination/Lender Fee (Margin)
     const lenderFee = Math.round(amount * 0.025);
 
+    // APR Calculation: (Interest + Fees) / Principal / Time
+    // A simplified APR estimate that includes the 2.5% lender fee
+    const aprAdjustment = (0.025 / (term?.startsWith('30') ? 30 : 15)) * 100;
+    const baseApr = finalRate + aprAdjustment + 0.15;
+
     return [
       {
         lender: "PRMG Agency Fixed",
         rate: finalRate,
-        apr: Number((finalRate + 0.15).toFixed(3)),
+        apr: Number(baseApr.toFixed(3)),
         monthlyPayment: Math.round(amount * (finalRate / 100 / 12) / (1 - Math.pow(1 + finalRate / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee,
@@ -58,7 +63,7 @@ export async function registerRoutes(
       {
         lender: "PRMG HomeReady",
         rate: Number((finalRate - 0.125).toFixed(3)),
-        apr: Number((finalRate + 0.12).toFixed(3)),
+        apr: Number((baseApr - 0.125).toFixed(3)),
         monthlyPayment: Math.round(amount * ((finalRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.125) / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee,
@@ -67,7 +72,7 @@ export async function registerRoutes(
       {
         lender: "PRMG Government FHA",
         rate: Number((finalRate + 0.25).toFixed(3)),
-        apr: Number((finalRate + 0.35).toFixed(3)),
+        apr: Number((baseApr + 0.25 + 0.2).toFixed(3)), // Extra buffer for FHA MI
         monthlyPayment: Math.round(amount * ((finalRate + 0.25) / 100 / 12) / (1 - Math.pow(1 + (finalRate + 0.25) / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee,
