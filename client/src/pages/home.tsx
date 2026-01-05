@@ -113,7 +113,7 @@ export default function Home() {
 
               {/* Right Form */}
               <div className="order-1 lg:order-2 w-full flex justify-center lg:justify-end">
-                <LeadForm onRatesReceived={handleRatesReceived} />
+                <LeadForm onRatesReceived={(rates, lead) => handleRatesReceived(rates, lead)} />
               </div>
             </div>
 

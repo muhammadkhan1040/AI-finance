@@ -12,7 +12,7 @@ import { Check, ChevronRight, DollarSign, Home, User, ArrowLeft, Percent } from 
 import { cn } from "@/lib/utils";
 
 interface LeadFormProps {
-  onRatesReceived: (rates: Rate[]) => void;
+  onRatesReceived: (rates: Rate[], lead: Lead) => void;
 }
 
 const STEPS = [

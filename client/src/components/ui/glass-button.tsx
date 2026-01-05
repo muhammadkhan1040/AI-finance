@@ -1,10 +1,12 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+import { Slot } from "@radix-ui/react-slot";
 
 interface GlassButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline";
   isLoading?: boolean;
+  asChild?: boolean;
 }
 
 export function GlassButton({ 
@@ -13,8 +15,10 @@ export function GlassButton({
   variant = "primary", 
   isLoading,
   disabled,
+  asChild = false,
   ...props 
 }: GlassButtonProps) {
+  const Comp = asChild ? Slot : "button";
   const baseStyles = "relative inline-flex items-center justify-center px-6 py-3 rounded-full font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95";
   
   const variants = {
@@ -24,13 +28,13 @@ export function GlassButton({
   };
 
   return (
-    <button 
+    <Comp 
       className={cn(baseStyles, variants[variant], className)}
       disabled={disabled || isLoading}
       {...props}
     >
       {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
       {children}
-    </button>
+    </Comp>
   );
 }
