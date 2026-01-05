@@ -1,9 +1,9 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { api, errorSchemas } from "@shared/routes";
+import { api } from "@shared/routes";
 import { z } from "zod";
-import { ratesSchema, type Rate } from "@shared/schema";
+import { type Rate } from "@shared/schema";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -12,31 +12,36 @@ export async function registerRoutes(
   
   // Helper to generate mock rates based on credit score
   function getMockRates(score: string, amount: number): Rate[] {
-    let baseRate = 6.5; // Average base rate
+    let baseRate = 6.5; 
     if (score === 'excellent') baseRate -= 0.5;
     if (score === 'good') baseRate -= 0.25;
     if (score === 'fair') baseRate += 0.25;
     if (score === 'poor') baseRate += 1.0;
 
-    // Generate 3 options
     return [
       {
         lender: "Rocket Mortgage",
         rate: Number((baseRate + 0.125).toFixed(3)),
         apr: Number((baseRate + 0.25).toFixed(3)),
-        monthlyPayment: Math.round(amount * ((baseRate + 0.125) / 100 / 12) / (1 - Math.pow(1 + (baseRate + 0.125) / 100 / 12, -360)))
+        monthlyPayment: Math.round(amount * ((baseRate + 0.125) / 100 / 12) / (1 - Math.pow(1 + (baseRate + 0.125) / 100 / 12, -360))),
+        processingFee: 895,
+        underwritingFee: 1100
       },
       {
         lender: "Better.com",
         rate: Number((baseRate).toFixed(3)),
         apr: Number((baseRate + 0.15).toFixed(3)),
-        monthlyPayment: Math.round(amount * ((baseRate) / 100 / 12) / (1 - Math.pow(1 + (baseRate) / 100 / 12, -360)))
+        monthlyPayment: Math.round(amount * ((baseRate) / 100 / 12) / (1 - Math.pow(1 + (baseRate) / 100 / 12, -360))),
+        processingFee: 895,
+        underwritingFee: 1100
       },
       {
         lender: "LoanDepot",
         rate: Number((baseRate - 0.125).toFixed(3)),
         apr: Number((baseRate + 0.1).toFixed(3)),
-        monthlyPayment: Math.round(amount * ((baseRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (baseRate - 0.125) / 100 / 12, -360)))
+        monthlyPayment: Math.round(amount * ((baseRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (baseRate - 0.125) / 100 / 12, -360))),
+        processingFee: 895,
+        underwritingFee: 1100
       }
     ];
   }
@@ -55,17 +60,7 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      throw err;
-    }
-  });
-
-  app.get(api.rates.list.path, async (req, res) => {
-    try {
-      const { score, amount } = req.query;
-      const rates = getMockRates(String(score), Number(amount));
-      res.json(rates);
-    } catch (err) {
-      res.status(500).json({ message: "Failed to fetch rates" });
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 

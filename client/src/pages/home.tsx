@@ -3,7 +3,8 @@ import { LeadForm } from "@/components/LeadForm";
 import { RatesDisplay } from "@/components/RatesDisplay";
 import { type Rate } from "@shared/schema";
 import { motion } from "framer-motion";
-import { Zap, ShieldCheck, Clock } from "lucide-react";
+import { Zap, ShieldCheck, Clock, HelpCircle } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export default function Home() {
   const [rates, setRates] = useState<Rate[] | null>(null);
@@ -15,6 +16,25 @@ export default function Home() {
     { text: "4.9★ rated on Google Reviews", author: "Google", stars: 5 },
   ];
 
+  const faqs = [
+    {
+      question: "How does the AI check my rate?",
+      answer: "Our AI engine analyzes current market data, your credit profile, and lender-specific guidelines to find the most accurate rates available in real-time."
+    },
+    {
+      question: "Will this affect my credit score?",
+      answer: "No. Checking your rates with us uses a 'soft pull' which does not impact your credit score in any way."
+    },
+    {
+      question: "What fees are included in the APR?",
+      answer: "The APR includes the interest rate plus standard lender fees like processing and underwriting. We show you the total cost so there are no surprises."
+    },
+    {
+      question: "How long does the process take?",
+      answer: "You can see your initial rate quotes in about 60 seconds. If you choose to move forward, the full approval typically takes 2-3 weeks."
+    }
+  ];
+
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col">
       <div className="bg-galaxy" />
@@ -23,65 +43,100 @@ export default function Home() {
       <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative z-10">
         
         {!rates ? (
-          <div className="w-full max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Content */}
-            <div className="order-2 lg:order-1 space-y-8 text-center lg:text-left">
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/30 border border-white/10 backdrop-blur-md mb-6">
-                  <Zap className="w-4 h-4 text-[#5cffb5]" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-white/90">AI-Powered Comparisons</span>
-                </div>
-                
-                <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6">
-                  Check your rate <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#5cffb5] to-[#0fd0ff]">in seconds.</span>
-                </h1>
-                
-                <p className="text-lg md:text-xl text-blue-100/80 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                  Lower rates. Real savings. No BS. See if your deal is good — or if you can do better with our AI engine.
-                </p>
-              </motion.div>
-
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4, duration: 0.8 }}
-                className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto lg:mx-0"
-              >
-                {[
-                  "Instant AI check on your current rate",
-                  "Compare top lenders side by side",
-                  "No impact to your credit to see options",
-                  "Takes about 60 seconds to start"
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 text-sm text-blue-100/70">
-                    <div className="w-2 h-2 rounded-full bg-[#5cffb5] shadow-[0_0_8px_rgba(92,255,181,0.8)] animate-pulse-dot" />
-                    {item}
+          <div className="w-full max-w-6xl mx-auto space-y-24 py-12">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              {/* Left Content */}
+              <div className="order-2 lg:order-1 space-y-8 text-center lg:text-left">
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6 }}
+                >
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/30 border border-white/10 backdrop-blur-md mb-6">
+                    <Zap className="w-4 h-4 text-[#5cffb5]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-white/90">AI-Powered Comparisons</span>
                   </div>
-                ))}
-              </motion.div>
+                  
+                  <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6">
+                    Check your rate <br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#5cffb5] to-[#0fd0ff]">in seconds.</span>
+                  </h1>
+                  
+                  <p className="text-lg md:text-xl text-blue-100/80 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                    Lower rates. Real savings. No BS. See if your deal is good — or if you can do better with our AI engine.
+                  </p>
+                </motion.div>
 
-              {/* Marquee Reviews */}
-              <div className="relative w-full max-w-md mx-auto lg:mx-0 overflow-hidden h-12 mask-linear-fade">
-                <div className="flex gap-4 animate-marquee whitespace-nowrap absolute">
-                  {[...reviews, ...reviews].map((review, i) => (
-                    <div key={i} className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-black/40 border border-white/10 backdrop-blur-sm">
-                      <span className="text-yellow-400 text-xs">★★★★★</span>
-                      <span className="text-xs text-white/90 font-medium">"{review.text}"</span>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4, duration: 0.8 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto lg:mx-0"
+                >
+                  {[
+                    "Instant AI check on your current rate",
+                    "Compare top lenders side by side",
+                    "No impact to your credit to see options",
+                    "Takes about 60 seconds to start"
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3 text-sm text-blue-100/70">
+                      <div className="w-2 h-2 rounded-full bg-[#5cffb5] shadow-[0_0_8px_rgba(92,255,181,0.8)] animate-pulse-dot" />
+                      {item}
                     </div>
                   ))}
+                </motion.div>
+
+                {/* Marquee Reviews */}
+                <div className="relative w-full max-w-md mx-auto lg:mx-0 overflow-hidden h-12 mask-linear-fade">
+                  <div className="flex gap-4 animate-marquee whitespace-nowrap absolute">
+                    {[...reviews, ...reviews].map((review, i) => (
+                      <div key={i} className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-black/40 border border-white/10 backdrop-blur-sm">
+                        <span className="text-yellow-400 text-xs">★★★★★</span>
+                        <span className="text-xs text-white/90 font-medium">"{review.text}"</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              </div>
+
+              {/* Right Form */}
+              <div className="order-1 lg:order-2 w-full flex justify-center lg:justify-end">
+                <LeadForm onRatesReceived={setRates} />
               </div>
             </div>
 
-            {/* Right Form */}
-            <div className="order-1 lg:order-2 w-full flex justify-center lg:justify-end">
-              <LeadForm onRatesReceived={setRates} />
-            </div>
+            {/* FAQ Section */}
+            <motion.section 
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8 }}
+              className="max-w-3xl mx-auto w-full px-4"
+            >
+              <div className="text-center mb-12">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 mb-4">
+                  <HelpCircle className="w-4 h-4 text-[#0fd0ff]" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-blue-200">Common Questions</span>
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Frequently Asked Questions</h2>
+                <p className="text-blue-200/60">Everything you need to know about checking your rates.</p>
+              </div>
+
+              <div className="glass-card rounded-2xl p-6 md:p-8">
+                <Accordion type="single" collapsible className="w-full space-y-4">
+                  {faqs.map((faq, i) => (
+                    <AccordionItem key={i} value={`item-${i}`} className="border-white/10">
+                      <AccordionTrigger className="text-white hover:text-[#5cffb5] text-left py-4 no-underline hover:no-underline">
+                        {faq.question}
+                      </AccordionTrigger>
+                      <AccordionContent className="text-blue-200/70 leading-relaxed pb-4">
+                        {faq.answer}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              </div>
+            </motion.section>
           </div>
         ) : (
           <RatesDisplay rates={rates} onReset={() => setRates(null)} />
@@ -89,21 +144,44 @@ export default function Home() {
 
       </main>
 
-      {/* Footer / FAQ Teaser */}
-      <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 py-8 border-t border-white/5 mt-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-blue-200/40 text-xs">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Secure 256-bit Encryption</span>
+      {/* Footer */}
+      <footer className="relative z-10 w-full border-t border-white/5 bg-black/40 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start mb-12">
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <img src="/logo.png" alt="A-Z Home Loans" className="h-10 w-auto brightness-0 invert" />
+                <img src="/equal-housing.png" alt="Equal Housing Opportunity" className="h-10 w-auto brightness-0 invert" />
+              </div>
+              <p className="text-blue-200/40 text-xs leading-relaxed max-w-md">
+                This is a tool for informational purposes only. Rates and programs are subject to change without notice. All loans are subject to credit and underwriting approval. CheckMy.ai is a platform powered by A-Z Home Loans.
+              </p>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2 text-blue-200/40 text-[10px] font-bold uppercase tracking-widest">
+                  <ShieldCheck className="w-3 h-3" />
+                  SECURE PORTAL
+                </div>
+                <div className="flex items-center gap-2 text-blue-200/40 text-[10px] font-bold uppercase tracking-widest">
+                  <Clock className="w-3 h-3" />
+                  REAL-TIME UPDATES
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span>Rates updated: Just now</span>
+            
+            <div className="text-right space-y-4">
+              <div className="text-white/80 font-bold text-sm">NMLS #2449185</div>
+              <div className="text-blue-200/40 text-[10px] uppercase tracking-widest leading-loose">
+                Equal Housing Opportunity<br />
+                A-Z Home Loans LLC<br />
+                All Rights Reserved © 2026
+              </div>
             </div>
           </div>
-          <div>
-            © 2024 CheckMy.ai | NMLS #2449185 | A-Z Home Loans
+          
+          <div className="pt-8 border-t border-white/5 text-center">
+            <p className="text-blue-200/20 text-[10px] uppercase tracking-[0.2em]">
+              Precision Crafted for A-Z Home Loans
+            </p>
           </div>
         </div>
       </footer>

@@ -243,7 +243,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                   <div className="space-y-2">
                     <Label className="text-blue-200">Credit Score (Estimate)</Label>
                     <Select onValueChange={(v) => setValue("creditScore", v)} defaultValue="excellent">
-                      <SelectTrigger className="glass-input h-12 w-full">
+                      <SelectTrigger className="glass-input h-12 w-full" data-testid="select-credit-score">
                         <SelectValue placeholder="Select Credit Score" />
                       </SelectTrigger>
                       <SelectContent className="bg-[#050818] border-blue-500/30 text-white">
@@ -288,6 +288,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                 type="button" 
                 onClick={nextStep} 
                 className="flex-1"
+                data-testid="button-next-step"
               >
                 Next Step <ChevronRight className="w-4 h-4 ml-2" />
               </GlassButton>
@@ -296,6 +297,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                 type="submit" 
                 isLoading={isPending}
                 className="flex-1"
+                data-testid="button-get-rates"
               >
                 Get My Rates
               </GlassButton>
