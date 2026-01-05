@@ -39,6 +39,9 @@ export async function registerRoutes(
     // Adjust for DSCR (PRMG adds premium for Non-QM/DSCR - Pg 16/17)
     if (term === 'dscr') baseRate += 0.75;
 
+    // finalRate is the base interest rate
+    const finalRate = Number(baseRate.toFixed(3));
+
     // APR Calculation helper
     const calculateApr = (r: number, f: number) => Number((r + (f / amount / 30) * 100 + 0.15).toFixed(3));
 
