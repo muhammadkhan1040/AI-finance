@@ -12,7 +12,9 @@ export const leads = pgTable("leads", {
   loanPurpose: text("loan_purpose").notNull(), // 'purchase' | 'refinance'
   creditScore: text("credit_score").notNull(), // 'excellent' | 'good' | 'fair' | 'poor'
   zipCode: text("zip_code").notNull(),
-  propertyValue: integer("property_value").notNull(), // Changed to notNull
+  propertyValue: integer("property_value").notNull(),
+  loanTerm: text("loan_term").notNull().default("30yr"),
+  propertyType: text("property_type").notNull().default("single_family"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

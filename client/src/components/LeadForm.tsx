@@ -32,6 +32,8 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
       creditScore: "732-750",
       loanAmount: 350000,
       propertyValue: 450000,
+      loanTerm: "30yr",
+      propertyType: "single_family",
       zipCode: "",
       firstName: "",
       lastName: "",
@@ -47,7 +49,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
     let fieldsToValidate: (keyof InsertLead)[] = [];
     
     if (step === 0) fieldsToValidate = ["loanPurpose"];
-    if (step === 1) fieldsToValidate = ["zipCode", "loanAmount", "propertyValue"];
+    if (step === 1) fieldsToValidate = ["zipCode", "loanAmount", "propertyValue", "loanTerm", "propertyType"];
     
     const isValid = await trigger(fieldsToValidate);
     if (isValid) setStep(s => s + 1);
@@ -210,6 +212,39 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                         type="number"
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-blue-200">Property Type</Label>
+                    <Select onValueChange={(v) => setValue("propertyType", v)} defaultValue="single_family">
+                      <SelectTrigger className="glass-input h-12 w-full" data-testid="select-property-type">
+                        <SelectValue placeholder="Select Property Type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#050818] border-blue-500/30 text-white">
+                        <SelectItem value="single_family">Single Family</SelectItem>
+                        <SelectItem value="condo">Condo</SelectItem>
+                        <SelectItem value="multi_2_4">Multi Family 2-4 Unit</SelectItem>
+                        <SelectItem value="multi_5_plus">Multi Family 5+ Units</SelectItem>
+                        <SelectItem value="townhome">Town Home</SelectItem>
+                        <SelectItem value="manufactured">Manufactured Home</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-blue-200">Loan Term</Label>
+                    <Select onValueChange={(v) => setValue("loanTerm", v)} defaultValue="30yr">
+                      <SelectTrigger className="glass-input h-12 w-full" data-testid="select-loan-term">
+                        <SelectValue placeholder="Select Loan Term" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#050818] border-blue-500/30 text-white">
+                        <SelectItem value="30yr">30 Year Fixed</SelectItem>
+                        <SelectItem value="25yr">25 Year Fixed</SelectItem>
+                        <SelectItem value="20yr">20 Year Fixed</SelectItem>
+                        <SelectItem value="15yr">15 Year Fixed</SelectItem>
+                        <SelectItem value="10yr">10 Year Fixed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </motion.div>
