@@ -198,7 +198,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                       <Input 
                         className="glass-input h-12 pl-10" 
                         placeholder="450,000"
-                        value={watch("propertyValue").toLocaleString()}
+                        value={(watch("propertyValue") || 0).toLocaleString()}
                         onChange={(e) => {
                           const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
                           setValue("propertyValue", val);
@@ -214,7 +214,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                       <Input 
                         className="glass-input h-12 pl-10" 
                         placeholder="350,000"
-                        value={watch("loanAmount").toLocaleString()}
+                        value={(watch("loanAmount") || 0).toLocaleString()}
                         onChange={(e) => {
                           const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
                           setValue("loanAmount", val);
@@ -230,7 +230,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                       <Input 
                         className="glass-input h-12 pl-10" 
                         placeholder="100,000"
-                        value={watch("annualIncome").toLocaleString()}
+                        value={(watch("annualIncome") || 0).toLocaleString()}
                         onChange={(e) => {
                           const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
                           setValue("annualIncome", val);
