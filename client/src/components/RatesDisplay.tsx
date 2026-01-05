@@ -242,29 +242,40 @@ export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
                         </span>
                       </TooltipTrigger>
                       <TooltipContent className="bg-[#050818] border-blue-500/30 text-white p-3 space-y-2">
-                        <div className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-1">APR Breakdown</div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-blue-200/60">Base Rate:</span>
-                          <span>{rate.rate.toFixed(3)}%</span>
-                        </div>
-                        {rate.lenderFee && (
+                        <div className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2 border-b border-white/10 pb-1">Detailed APR Analysis</div>
+                        <div className="space-y-1.5 text-xs">
                           <div className="flex justify-between gap-4">
-                            <span className="text-red-300">Buydown Cost:</span>
-                            <span className="text-red-300">+${rate.lenderFee.toLocaleString()}</span>
+                            <span className="text-blue-200/60 font-medium">Interest Rate (Note Rate):</span>
+                            <span className="text-white font-bold">{rate.rate.toFixed(3)}%</span>
                           </div>
-                        )}
-                        {rate.lenderCredit && (
-                          <div className="flex justify-between gap-4">
-                            <span className="text-green-300">Lender Credit:</span>
-                            <span className="text-green-300">-${rate.lenderCredit.toLocaleString()}</span>
+                          <div className="flex justify-between gap-4 pt-1">
+                            <span className="text-blue-200/40 italic">Adjustments from fees:</span>
                           </div>
-                        )}
-                        <div className="flex justify-between gap-4">
-                          <span className="text-blue-200/60">Closing Costs:</span>
-                          <span>+0.150%</span>
+                          <div className="pl-2 space-y-1">
+                            <div className="flex justify-between gap-4">
+                              <span className="text-blue-200/60">Standard Costs:</span>
+                              <span className="text-blue-200">+0.150%</span>
+                            </div>
+                            {rate.lenderFee && (
+                              <div className="flex justify-between gap-4">
+                                <span className="text-red-300">Buydown Cost (${rate.lenderFee.toLocaleString()}):</span>
+                                <span className="text-red-300">+{((rate.lenderFee / (lead.loanAmount || 1) / 30) * 100).toFixed(3)}%</span>
+                              </div>
+                            )}
+                            {rate.lenderCredit && (
+                              <div className="flex justify-between gap-4">
+                                <span className="text-green-300">Lender Credit (${rate.lenderCredit.toLocaleString()}):</span>
+                                <span className="text-green-300">-{((rate.lenderCredit / (lead.loanAmount || 1) / 30) * 100).toFixed(3)}%</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex justify-between gap-4 pt-2 border-t border-white/10 font-bold">
+                            <span className="text-[#5cffb5]">Total Effective APR:</span>
+                            <span className="text-[#5cffb5]">{rate.apr.toFixed(3)}%</span>
+                          </div>
                         </div>
-                        <div className="text-[10px] text-blue-200/40 pt-1 border-t border-white/10 italic">
-                          APR reflects interest + fees spread over loan term
+                        <div className="text-[10px] text-blue-200/40 pt-2 italic leading-tight">
+                          APR (Annual Percentage Rate) represents the total annual cost of the loan including interest and all prepaid finance charges.
                         </div>
                       </TooltipContent>
                     </Tooltip>

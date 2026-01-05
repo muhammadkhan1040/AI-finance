@@ -39,41 +39,67 @@ export async function registerRoutes(
     // Adjust for DSCR (PRMG adds premium for Non-QM/DSCR - Pg 16/17)
     if (term === 'dscr') baseRate += 0.75;
 
-    // finalRate is the base interest rate
-    const finalRate = Number(baseRate.toFixed(3));
-    
-    // APR Calculation: (Interest + Fees) / Principal / Time
-    const baseApr = finalRate + 0.15;
+    // APR Calculation helper
+    const calculateApr = (r: number, f: number) => Number((r + (f / amount / 30) * 100 + 0.15).toFixed(3));
 
     return [
       {
-        lender: "PRMG (Base)",
+        lender: "PRMG (Standard)",
         rate: finalRate,
-        apr: Number(baseApr.toFixed(3)),
+        apr: calculateApr(finalRate, processingFee + underwritingFee),
         monthlyPayment: Math.round(amount * (finalRate / 100 / 12) / (1 - Math.pow(1 + finalRate / 100 / 12, -360))),
-        processingFee: processingFee,
-        underwritingFee: underwritingFee,
-        note: "Standard base pricing"
+        processingFee,
+        underwritingFee,
+        note: "Base pricing - No points"
       },
       {
         lender: "UWM (1% Buydown)",
         rate: Number((finalRate - 0.375).toFixed(3)),
-        apr: Number((baseApr - 0.375 + 0.033).toFixed(3)), // APR slightly higher due to fee
+        apr: calculateApr(finalRate - 0.375, processingFee + underwritingFee + (amount * 0.01)),
         monthlyPayment: Math.round(amount * ((finalRate - 0.375) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.375) / 100 / 12, -360))),
-        processingFee: processingFee,
-        underwritingFee: underwritingFee,
+        processingFee,
+        underwritingFee,
         lenderFee: Math.round(amount * 0.01),
-        note: "Lower rate with 1% buydown"
+        note: "1 Point Buy-down"
+      },
+      {
+        lender: "UWM (2% Buydown)",
+        rate: Number((finalRate - 0.75).toFixed(3)),
+        apr: calculateApr(finalRate - 0.75, processingFee + underwritingFee + (amount * 0.02)),
+        monthlyPayment: Math.round(amount * ((finalRate - 0.75) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.75) / 100 / 12, -360))),
+        processingFee,
+        underwritingFee,
+        lenderFee: Math.round(amount * 0.02),
+        note: "2 Points Buy-down"
       },
       {
         lender: "Flagstar (0.5% Credit)",
         rate: Number((finalRate + 0.25).toFixed(3)),
-        apr: Number((baseApr + 0.25 - 0.016).toFixed(3)), // APR slightly lower due to credit
+        apr: calculateApr(finalRate + 0.25, processingFee + underwritingFee - (amount * 0.005)),
         monthlyPayment: Math.round(amount * ((finalRate + 0.25) / 100 / 12) / (1 - Math.pow(1 + (finalRate + 0.25) / 100 / 12, -360))),
-        processingFee: processingFee,
-        underwritingFee: underwritingFee,
+        processingFee,
+        underwritingFee,
         lenderCredit: Math.round(amount * 0.005),
-        note: "0.5% lender credit towards closing"
+        note: "0.5% Credit towards costs"
+      },
+      {
+        lender: "Flagstar (1.0% Credit)",
+        rate: Number((finalRate + 0.5).toFixed(3)),
+        apr: calculateApr(finalRate + 0.5, processingFee + underwritingFee - (amount * 0.01)),
+        monthlyPayment: Math.round(amount * ((finalRate + 0.5) / 100 / 12) / (1 - Math.pow(1 + (finalRate + 0.5) / 100 / 12, -360))),
+        processingFee,
+        underwritingFee,
+        lenderCredit: Math.round(amount * 0.01),
+        note: "1.0% Credit towards costs"
+      },
+      {
+        lender: "PRMG (Elite)",
+        rate: Number((finalRate - 0.125).toFixed(3)),
+        apr: calculateApr(finalRate - 0.125, processingFee + underwritingFee),
+        monthlyPayment: Math.round(amount * ((finalRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.125) / 100 / 12, -360))),
+        processingFee,
+        underwritingFee,
+        note: "Elite Pricing Tier"
       }
     ];
   }
