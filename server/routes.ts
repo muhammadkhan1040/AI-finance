@@ -45,66 +45,54 @@ export async function registerRoutes(
     // APR Calculation helper
     const calculateApr = (r: number, f: number) => Number((r + (f / amount / 30) * 100 + 0.15).toFixed(3));
 
-    return [
-      {
-        lender: "PRMG (Standard)",
-        rate: finalRate,
-        apr: calculateApr(finalRate, processingFee + underwritingFee),
-        monthlyPayment: Math.round(amount * (finalRate / 100 / 12) / (1 - Math.pow(1 + finalRate / 100 / 12, -360))),
-        processingFee,
-        underwritingFee,
-        note: "Base pricing - No points"
-      },
-      {
-        lender: "UWM (1% Buydown)",
-        rate: Number((finalRate - 0.375).toFixed(3)),
-        apr: calculateApr(finalRate - 0.375, processingFee + underwritingFee + (amount * 0.01)),
-        monthlyPayment: Math.round(amount * ((finalRate - 0.375) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.375) / 100 / 12, -360))),
+    const lenders = [
+      { name: "PRMG", baseAdj: 0 },
+      { name: "UWM", baseAdj: -0.125 },
+      { name: "Flagstar", baseAdj: 0.125 }
+    ];
+
+    const results: Rate[] = [];
+
+    lenders.forEach(l => {
+      const lenderBase = finalRate + l.baseAdj;
+      
+      // 1% Buydown Option
+      results.push({
+        lender: l.name,
+        rate: Number((lenderBase - 0.375).toFixed(3)),
+        apr: calculateApr(lenderBase - 0.375, processingFee + underwritingFee + (amount * 0.01)),
+        monthlyPayment: Math.round(amount * ((lenderBase - 0.375) / 100 / 12) / (1 - Math.pow(1 + (lenderBase - 0.375) / 100 / 12, -360))),
         processingFee,
         underwritingFee,
         lenderFee: Math.round(amount * 0.01),
-        note: "1 Point Buy-down"
-      },
-      {
-        lender: "UWM (2% Buydown)",
-        rate: Number((finalRate - 0.75).toFixed(3)),
-        apr: calculateApr(finalRate - 0.75, processingFee + underwritingFee + (amount * 0.02)),
-        monthlyPayment: Math.round(amount * ((finalRate - 0.75) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.75) / 100 / 12, -360))),
+        note: "1% Buydown"
+      });
+
+      // Standard Option
+      results.push({
+        lender: l.name,
+        rate: Number(lenderBase.toFixed(3)),
+        apr: calculateApr(lenderBase, processingFee + underwritingFee),
+        monthlyPayment: Math.round(amount * (lenderBase / 100 / 12) / (1 - Math.pow(1 + lenderBase / 100 / 12, -360))),
         processingFee,
         underwritingFee,
-        lenderFee: Math.round(amount * 0.02),
-        note: "2 Points Buy-down"
-      },
-      {
-        lender: "Flagstar (0.5% Credit)",
-        rate: Number((finalRate + 0.25).toFixed(3)),
-        apr: calculateApr(finalRate + 0.25, processingFee + underwritingFee - (amount * 0.005)),
-        monthlyPayment: Math.round(amount * ((finalRate + 0.25) / 100 / 12) / (1 - Math.pow(1 + (finalRate + 0.25) / 100 / 12, -360))),
+        note: "Standard"
+      });
+
+      // 0.5% Credit Option
+      results.push({
+        lender: l.name,
+        rate: Number((lenderBase + 0.25).toFixed(3)),
+        apr: calculateApr(lenderBase + 0.25, processingFee + underwritingFee - (amount * 0.005)),
+        monthlyPayment: Math.round(amount * ((lenderBase + 0.25) / 100 / 12) / (1 - Math.pow(1 + (lenderBase + 0.25) / 100 / 12, -360))),
         processingFee,
         underwritingFee,
         lenderCredit: Math.round(amount * 0.005),
-        note: "0.5% Credit towards costs"
-      },
-      {
-        lender: "Flagstar (1.0% Credit)",
-        rate: Number((finalRate + 0.5).toFixed(3)),
-        apr: calculateApr(finalRate + 0.5, processingFee + underwritingFee - (amount * 0.01)),
-        monthlyPayment: Math.round(amount * ((finalRate + 0.5) / 100 / 12) / (1 - Math.pow(1 + (finalRate + 0.5) / 100 / 12, -360))),
-        processingFee,
-        underwritingFee,
-        lenderCredit: Math.round(amount * 0.01),
-        note: "1.0% Credit towards costs"
-      },
-      {
-        lender: "PRMG (Elite)",
-        rate: Number((finalRate - 0.125).toFixed(3)),
-        apr: calculateApr(finalRate - 0.125, processingFee + underwritingFee),
-        monthlyPayment: Math.round(amount * ((finalRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.125) / 100 / 12, -360))),
-        processingFee,
-        underwritingFee,
-        note: "Elite Pricing Tier"
-      }
-    ];
+        note: "0.5% Credit"
+      });
+    });
+
+    return results;
   }
 
   app.post(api.leads.create.path, async (req, res) => {
