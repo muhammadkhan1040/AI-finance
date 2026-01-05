@@ -86,6 +86,16 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
               <span className="text-white capitalize font-medium">{lead.loanType}</span>
             </div>
             <div className="flex justify-between text-sm">
+              <span className="text-blue-200/40">Annual Income</span>
+              <span className="text-white font-medium">${lead.annualIncome.toLocaleString()}</span>
+            </div>
+            {lead.loanPurpose === "purchase" && (
+              <div className="flex justify-between text-sm">
+                <span className="text-blue-200/40">First Time Buyer</span>
+                <span className="text-white capitalize font-medium">{lead.isFirstTimeBuyer}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm">
               <span className="text-blue-200/40">Property Type</span>
               <span className="text-white capitalize font-medium">{lead.propertyType.replace(/_/g, ' ')}</span>
             </div>

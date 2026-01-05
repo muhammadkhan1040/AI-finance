@@ -16,6 +16,8 @@ export const leads = pgTable("leads", {
   loanTerm: text("loan_term").notNull().default("30yr"),
   propertyType: text("property_type").notNull().default("single_family"),
   loanType: text("loan_type").notNull().default("conventional"),
+  annualIncome: integer("annual_income").notNull().default(0),
+  isFirstTimeBuyer: text("is_first_time_buyer").notNull().default("no"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

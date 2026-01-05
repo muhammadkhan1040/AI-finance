@@ -35,6 +35,8 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
       loanTerm: "30yr",
       loanType: "conventional",
       propertyType: "single_family",
+      annualIncome: 100000,
+      isFirstTimeBuyer: "no",
       zipCode: "",
       firstName: "",
       lastName: "",
@@ -50,7 +52,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
     let fieldsToValidate: (keyof InsertLead)[] = [];
     
     if (step === 0) fieldsToValidate = ["loanPurpose"];
-    if (step === 1) fieldsToValidate = ["zipCode", "loanAmount", "propertyValue", "loanTerm", "propertyType", "loanType"];
+    if (step === 1) fieldsToValidate = ["zipCode", "loanAmount", "propertyValue", "loanTerm", "propertyType", "loanType", "annualIncome"];
     
     const isValid = await trigger(fieldsToValidate);
     if (isValid) setStep(s => s + 1);
@@ -194,10 +196,13 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
                       <Input 
-                        {...register("propertyValue", { valueAsNumber: true })}
                         className="glass-input h-12 pl-10" 
-                        placeholder="450000"
-                        type="number"
+                        placeholder="450,000"
+                        value={watch("propertyValue").toLocaleString()}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
+                          setValue("propertyValue", val);
+                        }}
                       />
                     </div>
                   </div>
@@ -207,13 +212,47 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
                       <Input 
-                        {...register("loanAmount", { valueAsNumber: true })}
                         className="glass-input h-12 pl-10" 
-                        placeholder="350000"
-                        type="number"
+                        placeholder="350,000"
+                        value={watch("loanAmount").toLocaleString()}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
+                          setValue("loanAmount", val);
+                        }}
                       />
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-blue-200">Annual Gross Income</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
+                      <Input 
+                        className="glass-input h-12 pl-10" 
+                        placeholder="100,000"
+                        value={watch("annualIncome").toLocaleString()}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
+                          setValue("annualIncome", val);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {loanPurpose === "purchase" && (
+                    <div className="space-y-2">
+                      <Label className="text-blue-200">First Time Home Buyer?</Label>
+                      <Select onValueChange={(v) => setValue("isFirstTimeBuyer", v)} defaultValue="no">
+                        <SelectTrigger className="glass-input h-12 w-full" data-testid="select-first-time-buyer">
+                          <SelectValue placeholder="Select Option" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#050818] border-blue-500/30 text-white">
+                          <SelectItem value="yes">Yes</SelectItem>
+                          <SelectItem value="no">No</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label className="text-blue-200">Loan Type</Label>
