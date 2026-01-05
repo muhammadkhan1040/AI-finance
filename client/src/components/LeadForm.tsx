@@ -70,10 +70,10 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
 
   return (
     <div className="w-full max-w-md mx-auto">
-      {/* Marketing Copy for Step 0 */}
+      {/* Marketing Copy for Step 0 (Mobile Only) */}
       {step === 0 && (
-        <div className="text-center mb-8 px-4 animate-in fade-in slide-in-from-top duration-700">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">
+        <div className="text-center mb-8 px-4 animate-in fade-in slide-in-from-top duration-700 md:hidden">
+          <h1 className="text-3xl font-bold text-white mb-4 tracking-tight">
             Check your rate <br/> <span className="text-[#5cffb5]">in seconds.</span>
           </h1>
           <p className="text-blue-100/90 font-medium text-lg mb-2">
@@ -102,7 +102,10 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
       )}
 
       {/* Progress Steps */}
-      <div className="flex items-center justify-between mb-8 px-4 max-w-[280px] mx-auto">
+      <div className={cn(
+        "flex items-center justify-between mb-8 px-4 max-w-[280px] mx-auto",
+        step === 0 && "hidden md:flex"
+      )}>
         {STEPS.map((s, i) => (
           <div key={s.id} className="flex flex-col items-center relative z-10">
             <motion.div 
