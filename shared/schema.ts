@@ -44,6 +44,7 @@ export const ratesSchema = z.object({
   monthlyPayment: z.number(),
   processingFee: z.number(),
   underwritingFee: z.number(),
+  lenderFee: z.number().optional(),
 });
 
 export type Rate = z.infer<typeof ratesSchema>;

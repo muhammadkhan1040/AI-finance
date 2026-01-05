@@ -44,6 +44,10 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
               <span className="text-blue-200/60 text-sm">Monthly P&I</span>
               <span className="text-2xl font-bold text-white">${rate.monthlyPayment.toLocaleString()}</span>
             </div>
+            <div className="flex justify-between items-baseline">
+              <span className="text-blue-200/60 text-sm">Lender Fee (2.5%)</span>
+              <span className="text-lg font-bold text-white">${rate.lenderFee?.toLocaleString() || '0'}</span>
+            </div>
             <div className="pt-4 border-t border-white/10 space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-blue-200/40">Processing Fee</span>
