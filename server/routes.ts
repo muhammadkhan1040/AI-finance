@@ -39,28 +39,31 @@ export async function registerRoutes(
     // Adjust for DSCR (PRMG adds premium for Non-QM/DSCR - Pg 16/17)
     if (term === 'dscr') baseRate += 0.75;
 
+    // Add 2.5% margin
+    const finalRate = baseRate + 2.5;
+
     return [
       {
         lender: "PRMG Agency Fixed",
-        rate: Number((baseRate).toFixed(3)),
-        apr: Number((baseRate + 0.15).toFixed(3)),
-        monthlyPayment: Math.round(amount * ((baseRate) / 100 / 12) / (1 - Math.pow(1 + (baseRate) / 100 / 12, -360))),
+        rate: Number((finalRate).toFixed(3)),
+        apr: Number((finalRate + 0.15).toFixed(3)),
+        monthlyPayment: Math.round(amount * ((finalRate) / 100 / 12) / (1 - Math.pow(1 + (finalRate) / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee
       },
       {
         lender: "PRMG HomeReady",
-        rate: Number((baseRate - 0.125).toFixed(3)),
-        apr: Number((baseRate + 0.12).toFixed(3)),
-        monthlyPayment: Math.round(amount * ((baseRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (baseRate - 0.125) / 100 / 12, -360))),
+        rate: Number((finalRate - 0.125).toFixed(3)),
+        apr: Number((finalRate + 0.12).toFixed(3)),
+        monthlyPayment: Math.round(amount * ((finalRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.125) / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee
       },
       {
         lender: "PRMG Government FHA",
-        rate: Number((baseRate + 0.25).toFixed(3)),
-        apr: Number((baseRate + 0.35).toFixed(3)),
-        monthlyPayment: Math.round(amount * ((baseRate + 0.25) / 100 / 12) / (1 - Math.pow(1 + (baseRate + 0.25) / 100 / 12, -360))),
+        rate: Number((finalRate + 0.25).toFixed(3)),
+        apr: Number((finalRate + 0.35).toFixed(3)),
+        monthlyPayment: Math.round(amount * ((finalRate + 0.25) / 100 / 12) / (1 - Math.pow(1 + (finalRate + 0.25) / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee
       }
