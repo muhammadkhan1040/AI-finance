@@ -49,8 +49,8 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
   const nextStep = async () => {
     let fieldsToValidate: (keyof InsertLead)[] = [];
     
-    if (step === 0) fieldsToValidate = ["loanPurpose", "loanType"];
-    if (step === 1) fieldsToValidate = ["zipCode", "loanAmount", "propertyValue", "loanTerm", "propertyType"];
+    if (step === 0) fieldsToValidate = ["loanPurpose"];
+    if (step === 1) fieldsToValidate = ["zipCode", "loanAmount", "propertyValue", "loanTerm", "propertyType", "loanType"];
     
     const isValid = await trigger(fieldsToValidate);
     if (isValid) setStep(s => s + 1);
@@ -161,34 +161,6 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                     </div>
                   </button>
                 </div>
-
-                <div className="space-y-4 pt-4 border-t border-white/10">
-                  <Label className="text-blue-200">Loan Type</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { id: "conventional", label: "Conventional" },
-                      { id: "fha", label: "FHA" },
-                      { id: "va", label: "VA" },
-                      { id: "jumbo", label: "Jumbo" },
-                      { id: "usda", label: "USDA" },
-                      { id: "reverse", label: "Reverse" }
-                    ].map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setValue("loanType", t.id)}
-                        className={cn(
-                          "py-3 px-4 rounded-xl border text-sm font-medium transition-all duration-300",
-                          watch("loanType") === t.id
-                            ? "bg-[#5cffb5]/10 border-[#5cffb5] text-[#5cffb5] shadow-[0_0_10px_rgba(92,255,181,0.2)]"
-                            : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20"
-                        )}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </motion.div>
             )}
 
@@ -241,6 +213,23 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                         type="number"
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-blue-200">Loan Type</Label>
+                    <Select onValueChange={(v) => setValue("loanType", v)} defaultValue="conventional">
+                      <SelectTrigger className="glass-input h-12 w-full" data-testid="select-loan-type">
+                        <SelectValue placeholder="Select Loan Type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#050818] border-blue-500/30 text-white">
+                        <SelectItem value="conventional">Conventional</SelectItem>
+                        <SelectItem value="fha">FHA</SelectItem>
+                        <SelectItem value="va">VA</SelectItem>
+                        <SelectItem value="jumbo">Jumbo</SelectItem>
+                        <SelectItem value="usda">USDA</SelectItem>
+                        <SelectItem value="reverse">Reverse</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
