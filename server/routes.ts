@@ -15,56 +15,54 @@ export async function registerRoutes(
     let baseRate = 6.5; 
     
     // Adjust base rate based on term
-    if (term === '15yr') baseRate -= 0.5;
-    if (term === '10yr') baseRate -= 0.75;
-    if (term === '20yr') baseRate -= 0.25;
-    
-    // Map new ranges to rate adjustments
-    if (score === '780+') baseRate -= 0.625;
-    else if (score === '760-780') baseRate -= 0.5;
-    else if (score === '740-759') baseRate -= 0.375;
-    else if (score === '720-739') baseRate -= 0.25;
-    else if (score === '700-719') baseRate -= 0.125;
-    else if (score === '680-699') baseRate += 0;
-    else if (score === '640-679') baseRate += 0.125;
-    else if (score === '620-639') baseRate += 0.25;
+    if (term === '15yr') baseRate = 5.880; // From APOR 15/20 Yr Fixed
+    else if (term === '10yr') baseRate = 5.750; // From APOR 10 Yr Fixed
+    else if (term === '20yr') baseRate = 5.880; // From APOR 15/20 Yr Fixed
+    else baseRate = 6.250; // Default 30 Yr Fixed APOR
+
+    // Underwriting fees from PRMG sheet
+    const underwritingFee = (term === 'dscr' || score.includes('Non-QM')) ? 1545 : 1245;
+    const processingFee = 895;
+
+    // Map new ranges to rate adjustments (estimated from PRMG logic)
+    if (score === '780+') baseRate -= 0.5;
+    else if (score === '760-780') baseRate -= 0.375;
+    else if (score === '740-759') baseRate -= 0.25;
+    else if (score === '720-739') baseRate -= 0.125;
+    else if (score === '700-719') baseRate += 0;
+    else if (score === '680-699') baseRate += 0.125;
+    else if (score === '640-679') baseRate += 0.25;
+    else if (score === '620-639') baseRate += 0.375;
     else if (score === '601-619') baseRate += 0.5;
     else if (score === '580-600') baseRate += 0.75;
-    else {
-      // Fallback for old values if any
-      if (score === 'excellent') baseRate -= 0.5;
-      if (score === 'good') baseRate -= 0.25;
-      if (score === 'fair') baseRate += 0.25;
-      if (score === 'poor') baseRate += 1.0;
-    }
 
-    // Adjust for DSCR
+    // Adjust for DSCR (PRMG adds premium for Non-QM/DSCR)
     if (term === 'dscr') baseRate += 0.75;
 
     return [
       {
-        lender: "Rocket Mortgage",
-        rate: Number((baseRate + 0.125).toFixed(3)),
-        apr: Number((baseRate + 0.25).toFixed(3)),
-        monthlyPayment: Math.round(amount * ((baseRate + 0.125) / 100 / 12) / (1 - Math.pow(1 + (baseRate + 0.125) / 100 / 12, -360))),
-        processingFee: 895,
-        underwritingFee: 1100
-      },
-      {
-        lender: "Better.com",
+        lender: "PRMG (Agency)",
         rate: Number((baseRate).toFixed(3)),
         apr: Number((baseRate + 0.15).toFixed(3)),
         monthlyPayment: Math.round(amount * ((baseRate) / 100 / 12) / (1 - Math.pow(1 + (baseRate) / 100 / 12, -360))),
-        processingFee: 895,
-        underwritingFee: 1100
+        processingFee: processingFee,
+        underwritingFee: underwritingFee
       },
       {
-        lender: "LoanDepot",
+        lender: "PRMG (Select)",
         rate: Number((baseRate - 0.125).toFixed(3)),
         apr: Number((baseRate + 0.1).toFixed(3)),
         monthlyPayment: Math.round(amount * ((baseRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (baseRate - 0.125) / 100 / 12, -360))),
-        processingFee: 895,
-        underwritingFee: 1100
+        processingFee: processingFee,
+        underwritingFee: underwritingFee
+      },
+      {
+        lender: "PRMG (Standard)",
+        rate: Number((baseRate + 0.125).toFixed(3)),
+        apr: Number((baseRate + 0.25).toFixed(3)),
+        monthlyPayment: Math.round(amount * ((baseRate + 0.125) / 100 / 12) / (1 - Math.pow(1 + (baseRate + 0.125) / 100 / 12, -360))),
+        processingFee: processingFee,
+        underwritingFee: underwritingFee
       }
     ];
   }
