@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { LeadForm } from "@/components/LeadForm";
 import { RatesDisplay } from "@/components/RatesDisplay";
-import { type Rate } from "@shared/schema";
+import { type Rate, type Lead } from "@shared/schema";
 import { motion } from "framer-motion";
 import { Zap, ShieldCheck, Clock, HelpCircle } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
