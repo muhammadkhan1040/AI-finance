@@ -9,10 +9,10 @@ export const leads = pgTable("leads", {
   email: text("email").notNull(),
   phone: text("phone").notNull(),
   loanAmount: integer("loan_amount").notNull(),
-  loanPurpose: text("loan_purpose").notNull(), // 'purchase' | 'refinance'
-  creditScore: text("credit_score").notNull(), // 'excellent' | 'good' | 'fair' | 'poor'
+  loanPurpose: text("loan_purpose").notNull(),
+  creditScore: text("credit_score").notNull(),
   zipCode: text("zip_code").notNull(),
-  propertyValue: integer("property_value"),
+  propertyValue: integer("property_value").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -20,9 +20,13 @@ export const insertLeadSchema = createInsertSchema(leads).omit({
   id: true, 
   createdAt: true 
 }).extend({
-  email: z.string().email(),
-  phone: z.string().min(10),
-  loanAmount: z.number().min(0),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  loanAmount: z.number().min(1, "Loan amount is required"),
+  propertyValue: z.number().min(1, "Property value is required"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  zipCode: z.string().min(5, "Valid zip code is required"),
 });
 
 export type Lead = typeof leads.$inferSelect;
@@ -33,6 +37,9 @@ export const ratesSchema = z.object({
   apr: z.number(),
   lender: z.string(),
   monthlyPayment: z.number(),
+  processingFee: z.number().default(895),
+  underwritingFee: z.number().default(1100),
+  totalSavings: z.number().default(1995),
 });
 
 export type Rate = z.infer<typeof ratesSchema>;
