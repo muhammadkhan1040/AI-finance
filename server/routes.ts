@@ -39,15 +39,15 @@ export async function registerRoutes(
     // Adjust for DSCR (PRMG adds premium for Non-QM/DSCR - Pg 16/17)
     if (term === 'dscr') baseRate += 0.75;
 
-    // Add 2.5% margin
-    const finalRate = baseRate + 2.5;
+    // Add 2.5% margin (rounded to 3 decimal places)
+    const finalRate = Number((baseRate + 2.5).toFixed(3));
 
     return [
       {
         lender: "PRMG Agency Fixed",
-        rate: Number((finalRate).toFixed(3)),
+        rate: finalRate,
         apr: Number((finalRate + 0.15).toFixed(3)),
-        monthlyPayment: Math.round(amount * ((finalRate) / 100 / 12) / (1 - Math.pow(1 + (finalRate) / 100 / 12, -360))),
+        monthlyPayment: Math.round(amount * (finalRate / 100 / 12) / (1 - Math.pow(1 + finalRate / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee
       },
