@@ -107,6 +107,16 @@ export async function registerRoutes(
     ];
   }
 
+  // Get all leads
+  app.get(api.leads.list.path, async (req, res) => {
+    try {
+      const allLeads = await storage.getLeads();
+      res.json(allLeads);
+    } catch (err) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.post(api.leads.create.path, async (req, res) => {
     try {
       const input = api.leads.create.input.parse(req.body);

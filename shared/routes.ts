@@ -25,6 +25,13 @@ export const api = {
         400: errorSchemas.validation,
       },
     },
+    list: {
+      method: 'GET' as const,
+      path: '/api/leads',
+      responses: {
+        200: z.array(z.custom<typeof leads.$inferSelect>()),
+      },
+    },
   },
   rates: {
     list: {
