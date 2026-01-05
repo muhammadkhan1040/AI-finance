@@ -169,9 +169,6 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start mb-12">
             <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <img src="/logo.png" alt="A-Z Home Loans" className="h-10 w-auto brightness-0 invert" />
-              </div>
               <p className="text-blue-200/40 text-xs leading-relaxed max-w-md">
                 This is a tool for informational purposes only. Rates and programs are subject to change without notice. All loans are subject to credit and underwriting approval.
               </p>
