@@ -5,6 +5,7 @@ import { type Rate, type Lead } from "@shared/schema";
 import { motion } from "framer-motion";
 import { Zap, ShieldCheck, Clock, HelpCircle } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import equalHousingPng from "@assets/download_1767636571589.png";
 
 export default function Home() {
   const [ratesData, setRatesData] = useState<{rates: Rate[], lead: Lead} | null>(null);
@@ -172,6 +173,7 @@ export default function Home() {
               <div className="flex items-center gap-4">
                 <img src="/logo.png" alt="A-Z Home Loans" className="h-10 w-auto brightness-0 invert" />
                 <img src="/equal-housing.png" alt="Equal Housing Opportunity" className="h-10 w-auto brightness-0 invert" />
+                <img src={equalHousingPng} alt="Equal Housing Opportunity" className="h-10 w-auto brightness-0 invert" />
               </div>
               <p className="text-blue-200/40 text-xs leading-relaxed max-w-md">
                 This is a tool for informational purposes only. Rates and programs are subject to change without notice. All loans are subject to credit and underwriting approval. CheckMy.ai is a platform powered by A-Z Home Loans.
@@ -198,7 +200,25 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="pt-8 border-t border-white/5 text-center">
+          <div className="space-y-6 text-blue-200/40 text-[10px] leading-relaxed border-t border-white/5 pt-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+              <div className="space-y-4">
+                <p>
+                  We comply with fair lending laws, such as the Equal Credit Opportunity Act, the Fair Housing Act, and the Home Mortgage Disclosure Act. We require annual fair lending training of all of our employees. And we strive every day, and in many different ways, to make sure that everyone has a positive experience with our company.
+                </p>
+                <p>
+                  We adhere to marketing rules, including those that address unfair or deceptive practices. We ensure that we provide clear, honest and accurate information to our customers and to the public. We do not want to bring customers in under false pretenses. We attract customers by providing them with an accurate understanding of what products we offer and how we do business.
+                </p>
+              </div>
+              <div className="space-y-4">
+                <p>
+                  We are committed to complying with both the letter and the spirit of fair lending rules. this is not an intent to lend please get a loan estimate for most accurate up to date figures.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-8 text-center">
             <p className="text-blue-200/20 text-[10px] uppercase tracking-[0.2em]">
               Precision Crafted for A-Z Home Loans
             </p>
