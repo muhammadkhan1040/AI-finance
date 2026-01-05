@@ -50,22 +50,22 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
               <span className="text-blue-200/60 text-sm">Monthly P&I</span>
               <span className="text-2xl font-bold text-white">${rate.monthlyPayment.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-baseline">
-              <span className="text-blue-200/60 text-sm">Lender Fee (2.5%)</span>
-              <span className="text-lg font-bold text-white">${rate.lenderFee?.toLocaleString() || '0'}</span>
-            </div>
             <div className="pt-4 border-t border-white/10 space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-blue-200/40">Processing Fee</span>
-                <span className="text-blue-200/60 line-through">${rate.processingFee}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-blue-200/40">Lender Fee (2.5%)</span>
+                <span className="text-white font-medium">${rate.lenderFee?.toLocaleString() || '0'}</span>
               </div>
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between text-sm">
                 <span className="text-blue-200/40">Underwriting Fee</span>
-                <span className="text-blue-200/60 line-through">${rate.underwritingFee}</span>
+                <span className="text-white font-medium">${rate.underwritingFee.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between text-sm font-bold text-[#5cffb5] pt-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-blue-200/40">Processing Fee</span>
+                <span className="text-white font-medium">${rate.processingFee.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm font-bold text-[#5cffb5] pt-2 border-t border-white/5">
                 <span>Online Application Savings</span>
-                <span>-${savings.toLocaleString()}</span>
+                <span>-${(rate.processingFee + rate.underwritingFee).toLocaleString()}</span>
               </div>
             </div>
           </div>
