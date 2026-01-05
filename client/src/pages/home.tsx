@@ -176,7 +176,7 @@ export default function Home() {
                 <img src={equalHousingPng} alt="Equal Housing Opportunity" className="h-10 w-auto brightness-0 invert" />
               </div>
               <p className="text-blue-200/40 text-xs leading-relaxed max-w-md">
-                This is a tool for informational purposes only. Rates and programs are subject to change without notice. All loans are subject to credit and underwriting approval. CheckMy.ai is a platform powered by A-Z Home Loans.
+                This is a tool for informational purposes only. Rates and programs are subject to change without notice. All loans are subject to credit and underwriting approval.
               </p>
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2 text-blue-200/40 text-[10px] font-bold uppercase tracking-widest">
@@ -193,8 +193,6 @@ export default function Home() {
             <div className="text-right space-y-4">
               <div className="text-white/80 font-bold text-sm">NMLS #2449185</div>
               <div className="text-blue-200/40 text-[10px] uppercase tracking-widest leading-loose">
-                Equal Housing Opportunity<br />
-                A-Z Home Loans LLC<br />
                 All Rights Reserved © 2026
               </div>
             </div>
