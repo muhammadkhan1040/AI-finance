@@ -13,10 +13,26 @@ export async function registerRoutes(
   // Helper to generate mock rates based on credit score
   function getMockRates(score: string, amount: number): Rate[] {
     let baseRate = 6.5; 
-    if (score === 'excellent') baseRate -= 0.5;
-    if (score === 'good') baseRate -= 0.25;
-    if (score === 'fair') baseRate += 0.25;
-    if (score === 'poor') baseRate += 1.0;
+    
+    // Map new ranges to rate adjustments
+    if (score === '770+') baseRate -= 0.625;
+    else if (score === '751-769') baseRate -= 0.5;
+    else if (score === '732-750') baseRate -= 0.375;
+    else if (score === '713-731') baseRate -= 0.25;
+    else if (score === '694-712') baseRate -= 0.125;
+    else if (score === '675-693') baseRate += 0;
+    else if (score === '656-674') baseRate += 0.125;
+    else if (score === '637-655') baseRate += 0.25;
+    else if (score === '618-636') baseRate += 0.5;
+    else if (score === '599-617') baseRate += 0.75;
+    else if (score === '580-598') baseRate += 1.0;
+    else {
+      // Fallback for old values if any
+      if (score === 'excellent') baseRate -= 0.5;
+      if (score === 'good') baseRate -= 0.25;
+      if (score === 'fair') baseRate += 0.25;
+      if (score === 'poor') baseRate += 1.0;
+    }
 
     return [
       {
