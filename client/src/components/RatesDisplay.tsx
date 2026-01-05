@@ -52,10 +52,6 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
             </div>
             <div className="pt-4 border-t border-white/10 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-blue-200/40">Lender Fee (2.5%)</span>
-                <span className="text-white font-medium">${rate.lenderFee?.toLocaleString() || '0'}</span>
-              </div>
-              <div className="flex justify-between text-sm">
                 <span className="text-blue-200/40">Underwriting Fee</span>
                 <span className="text-white font-medium">${rate.underwritingFee.toLocaleString()}</span>
               </div>
@@ -73,7 +69,15 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
 
         {/* Application Details */}
         <div className="glass-card rounded-2xl p-6">
-          <div className="text-xs font-bold uppercase tracking-widest text-blue-300 mb-4">Your Details</div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-xs font-bold uppercase tracking-widest text-blue-300">Your Details</div>
+            <button 
+              onClick={onReset}
+              className="text-xs text-[#5cffb5] hover:text-white transition-colors underline underline-offset-4 font-bold"
+            >
+              EDIT DETAILS
+            </button>
+          </div>
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-blue-200/40">Name</span>
@@ -222,10 +226,6 @@ export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
                         <div className="flex justify-between gap-4">
                           <span className="text-blue-200/60">Base Rate:</span>
                           <span>{rate.rate.toFixed(3)}%</span>
-                        </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-blue-200/60">Lender Fee (2.5%):</span>
-                          <span>+{(rate.apr - rate.rate - 0.15).toFixed(3)}%</span>
                         </div>
                         <div className="flex justify-between gap-4">
                           <span className="text-blue-200/60">Closing Costs:</span>

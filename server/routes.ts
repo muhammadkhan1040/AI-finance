@@ -42,13 +42,8 @@ export async function registerRoutes(
     // finalRate is the base interest rate
     const finalRate = Number(baseRate.toFixed(3));
     
-    // 2.5% Origination/Lender Fee (Margin)
-    const lenderFee = Math.round(amount * 0.025);
-
     // APR Calculation: (Interest + Fees) / Principal / Time
-    // A simplified APR estimate that includes the 2.5% lender fee
-    const aprAdjustment = (0.025 / (term?.startsWith('30') ? 30 : 15)) * 100;
-    const baseApr = finalRate + aprAdjustment + 0.15;
+    const baseApr = finalRate + 0.15;
 
     return [
       {
@@ -58,7 +53,6 @@ export async function registerRoutes(
         monthlyPayment: Math.round(amount * (finalRate / 100 / 12) / (1 - Math.pow(1 + finalRate / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee,
-        lenderFee: lenderFee
       },
       {
         lender: "PRMG HomeReady",
@@ -67,7 +61,6 @@ export async function registerRoutes(
         monthlyPayment: Math.round(amount * ((finalRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.125) / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee,
-        lenderFee: lenderFee
       },
       {
         lender: "PRMG Government FHA",
@@ -76,7 +69,6 @@ export async function registerRoutes(
         monthlyPayment: Math.round(amount * ((finalRate + 0.25) / 100 / 12) / (1 - Math.pow(1 + (finalRate + 0.25) / 100 / 12, -360))),
         processingFee: processingFee,
         underwritingFee: underwritingFee,
-        lenderFee: lenderFee
       }
     ];
   }
