@@ -266,6 +266,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                         <SelectItem value="va">VA</SelectItem>
                         <SelectItem value="jumbo">Jumbo</SelectItem>
                         <SelectItem value="usda">USDA</SelectItem>
+                        <SelectItem value="dscr">Investment (DSCR)</SelectItem>
                         <SelectItem value="reverse">Reverse</SelectItem>
                       </SelectContent>
                     </Select>
@@ -280,10 +281,10 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                       <SelectContent className="bg-[#050818] border-blue-500/30 text-white">
                         <SelectItem value="single_family">Single Family</SelectItem>
                         <SelectItem value="condo">Condo</SelectItem>
-                        <SelectItem value="multi_2_4">Multi Family 2-4 Unit</SelectItem>
-                        <SelectItem value="multi_5_plus">Multi Family 5+ Units</SelectItem>
                         <SelectItem value="townhome">Town Home</SelectItem>
                         <SelectItem value="manufactured">Manufactured Home</SelectItem>
+                        <SelectItem value="multi_2_4">Multi Family 2-4 Unit</SelectItem>
+                        <SelectItem value="multi_5_plus">Multi Family 5+ Units</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

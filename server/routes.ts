@@ -39,6 +39,9 @@ export async function registerRoutes(
       if (score === 'poor') baseRate += 1.0;
     }
 
+    // Adjust for DSCR
+    if (term === 'dscr') baseRate += 0.75;
+
     return [
       {
         lender: "Rocket Mortgage",
