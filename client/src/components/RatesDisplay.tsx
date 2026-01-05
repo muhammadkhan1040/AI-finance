@@ -135,11 +135,9 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
           variant="primary"
           data-testid="button-apply-online"
           asChild
-        >
-          <a href="https://atozhomeloans.my1003app.com/register" target="_blank" rel="noopener noreferrer">
+        ><a href="https://atozhomeloans.my1003app.com/register" target="_blank" rel="noopener noreferrer">
             Apply Online Now <ArrowRight className="w-5 h-5 ml-2" />
-          </a>
-        </GlassButton>
+          </a></GlassButton>
         <div className="flex items-center justify-center gap-2 text-blue-200/40 text-[10px] uppercase tracking-widest">
           <Info className="w-3 h-3" />
           Fees waived for online applications only
