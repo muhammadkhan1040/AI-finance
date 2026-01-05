@@ -44,6 +44,10 @@ export default function Home() {
     {
       question: "Are you veteran friendly?",
       answer: "Yes. We proudly work with veterans and understand the full range of VA loan benefits. We assist with: VA purchase loans, VA refinance and IRRRL options, Understanding eligibility and entitlement, and Breaking down benefits, fees, and long-term value. Our goal is to make the process clear, straightforward, and respectful of the benefits you’ve earned."
+    },
+    {
+      question: "Who is eligible for a reverse mortgage?",
+      answer: "To be eligible for a reverse mortgage, you must be 62 or older, own your home (or have a low remaining mortgage balance), and live in the home as your primary residence. Eligibility is also based on the home type and meeting basic financial requirements to ensure you can maintain taxes, insurance, and upkeep. Reverse mortgages are designed to help eligible homeowners access their home equity without monthly mortgage payments."
     }
   ];
 
