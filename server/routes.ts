@@ -39,8 +39,14 @@ export async function registerRoutes(
     // Adjust for DSCR (PRMG adds premium for Non-QM/DSCR - Pg 16/17)
     if (term === 'dscr') baseRate += 0.75;
 
-    // Add 2.5% margin (rounded to 3 decimal places)
-    const finalRate = Number((baseRate + 2.5).toFixed(3));
+    // finalRate is the base interest rate
+    const finalRate = Number(baseRate.toFixed(3));
+    
+    // 0.0250% adjustment to the "cost" (processing fee as a proxy or simply noted)
+    // Applying it as a small increase to the processing fee based on loan amount
+    // or as a flat addition to the lender fees as per typical "cost of rate" adjustments
+    const costAdjustment = amount * 0.00025; // 0.0250% of loan amount
+    const finalProcessingFee = Math.round(processingFee + costAdjustment);
 
     return [
       {
@@ -48,7 +54,7 @@ export async function registerRoutes(
         rate: finalRate,
         apr: Number((finalRate + 0.15).toFixed(3)),
         monthlyPayment: Math.round(amount * (finalRate / 100 / 12) / (1 - Math.pow(1 + finalRate / 100 / 12, -360))),
-        processingFee: processingFee,
+        processingFee: finalProcessingFee,
         underwritingFee: underwritingFee
       },
       {
@@ -56,7 +62,7 @@ export async function registerRoutes(
         rate: Number((finalRate - 0.125).toFixed(3)),
         apr: Number((finalRate + 0.12).toFixed(3)),
         monthlyPayment: Math.round(amount * ((finalRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.125) / 100 / 12, -360))),
-        processingFee: processingFee,
+        processingFee: finalProcessingFee,
         underwritingFee: underwritingFee
       },
       {
@@ -64,7 +70,7 @@ export async function registerRoutes(
         rate: Number((finalRate + 0.25).toFixed(3)),
         apr: Number((finalRate + 0.35).toFixed(3)),
         monthlyPayment: Math.round(amount * ((finalRate + 0.25) / 100 / 12) / (1 - Math.pow(1 + (finalRate + 0.25) / 100 / 12, -360))),
-        processingFee: processingFee,
+        processingFee: finalProcessingFee,
         underwritingFee: underwritingFee
       }
     ];
