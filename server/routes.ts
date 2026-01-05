@@ -20,17 +20,16 @@ export async function registerRoutes(
     if (term === '20yr') baseRate -= 0.25;
     
     // Map new ranges to rate adjustments
-    if (score === '770+') baseRate -= 0.625;
-    else if (score === '751-769') baseRate -= 0.5;
-    else if (score === '732-750') baseRate -= 0.375;
-    else if (score === '713-731') baseRate -= 0.25;
-    else if (score === '694-712') baseRate -= 0.125;
-    else if (score === '675-693') baseRate += 0;
-    else if (score === '656-674') baseRate += 0.125;
-    else if (score === '637-655') baseRate += 0.25;
-    else if (score === '618-636') baseRate += 0.5;
-    else if (score === '599-617') baseRate += 0.75;
-    else if (score === '580-598') baseRate += 1.0;
+    if (score === '780+') baseRate -= 0.625;
+    else if (score === '760-780') baseRate -= 0.5;
+    else if (score === '740-759') baseRate -= 0.375;
+    else if (score === '720-739') baseRate -= 0.25;
+    else if (score === '700-719') baseRate -= 0.125;
+    else if (score === '680-699') baseRate += 0;
+    else if (score === '640-679') baseRate += 0.125;
+    else if (score === '620-639') baseRate += 0.25;
+    else if (score === '601-619') baseRate += 0.5;
+    else if (score === '580-600') baseRate += 0.75;
     else {
       // Fallback for old values if any
       if (score === 'excellent') baseRate -= 0.5;

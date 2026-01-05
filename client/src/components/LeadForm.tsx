@@ -29,7 +29,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
     resolver: zodResolver(insertLeadSchema),
     defaultValues: {
       loanPurpose: "purchase",
-      creditScore: "732-750",
+      creditScore: "740-759",
       loanAmount: 350000,
       propertyValue: 450000,
       loanTerm: "30yr",
@@ -369,22 +369,21 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
 
                   <div className="space-y-2">
                     <Label className="text-blue-200">Credit Score (Estimate)</Label>
-                    <Select onValueChange={(v) => setValue("creditScore", v)} defaultValue="732-750">
+                    <Select onValueChange={(v) => setValue("creditScore", v)} defaultValue="740-759">
                       <SelectTrigger className="glass-input h-12 w-full" data-testid="select-credit-score">
                         <SelectValue placeholder="Select Credit Score" />
                       </SelectTrigger>
                       <SelectContent className="bg-[#050818] border-blue-500/30 text-white">
-                        <SelectItem value="580-598">580–598</SelectItem>
-                        <SelectItem value="599-617">599–617</SelectItem>
-                        <SelectItem value="618-636">618–636</SelectItem>
-                        <SelectItem value="637-655">637–655</SelectItem>
-                        <SelectItem value="656-674">656–674</SelectItem>
-                        <SelectItem value="675-693">675–693</SelectItem>
-                        <SelectItem value="694-712">694–712</SelectItem>
-                        <SelectItem value="713-731">713–731</SelectItem>
-                        <SelectItem value="732-750">732–750</SelectItem>
-                        <SelectItem value="751-769">751–769</SelectItem>
-                        <SelectItem value="770+">770–780+</SelectItem>
+                        <SelectItem value="780+">780+</SelectItem>
+                        <SelectItem value="760-780">760–780</SelectItem>
+                        <SelectItem value="740-759">740–759</SelectItem>
+                        <SelectItem value="720-739">720–739</SelectItem>
+                        <SelectItem value="700-719">700–719</SelectItem>
+                        <SelectItem value="680-699">680–699</SelectItem>
+                        <SelectItem value="640-679">640–679</SelectItem>
+                        <SelectItem value="620-639">620–639</SelectItem>
+                        <SelectItem value="601-619">601–619</SelectItem>
+                        <SelectItem value="580-600">580–600</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
