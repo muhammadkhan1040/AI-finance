@@ -23,23 +23,27 @@ export default function Home() {
   const faqs = [
     {
       question: "How does the AI check my rate?",
-      answer: "Our AI engine analyzes current market data, your credit profile, and lender-specific guidelines to find the most accurate rates available in real-time."
+      answer: "Our AI reviews real-time market pricing, lender guidelines, and the details you provide to identify the most accurate rate options available—without guesswork or sales bias. It’s designed to give you a clear, realistic view of what you actually qualify for before you decide to move forward."
     },
     {
-      question: "Will this affect my credit score?",
-      answer: "No. Checking your rates with us uses a 'soft pull' which does not impact your credit score in any way."
+      question: "Does this affect my credit?",
+      answer: "No. We don’t check your credit while you’re exploring options. We use your input to understand where you’re at and provide guidance. A credit check only happens if you choose to apply and move forward to lock a rate."
     },
     {
-      question: "What fees are included in the APR?",
-      answer: "The APR includes the interest rate plus standard lender fees like processing and underwriting. We show you the total cost so there are no surprises."
+      question: "Do you offer different mortgage options?",
+      answer: "Yes. We offer multiple loan options and match you with the one that best fits your goals and financial situation—clearly explained, no one-size-fits-all approach, and focused on long-term value whether you’re buying, refinancing, or just exploring."
+    },
+    {
+      question: "What makes you different from other mortgage companies?",
+      answer: "We do loans other lenders can’t by underwriting only to official guidelines—no extra overlays. That means clearer answers, more flexible options, and honest advice focused on the right outcome, not just closing a loan.(even if that means not moving forward)"
+    },
+    {
+      question: "Can you help with both purchases and refinances?",
+      answer: "Yes. We help Arizona buyers and homeowners with purchases, rate-and-term and cash-out refinances—whether you’re a first-time or repeat buyer. Our focus is helping you choose the right option, not pushing a loan that doesn’t fit."
     },
     {
       question: "Are you veteran friendly?",
       answer: "Yes. We proudly work with veterans and understand the full range of VA loan benefits. We assist with: VA purchase loans, VA refinance and IRRRL options, Understanding eligibility and entitlement, and Breaking down benefits, fees, and long-term value. Our goal is to make the process clear, straightforward, and respectful of the benefits you’ve earned."
-    },
-    {
-      question: "How long does the process take?",
-      answer: "You can see your initial rate quotes in about 60 seconds. If you choose to move forward, the full approval typically takes 2-3 weeks."
     }
   ];
 
