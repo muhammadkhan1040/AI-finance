@@ -202,7 +202,7 @@ export default function Home() {
 
           <div className="pt-8 text-center">
             <p className="text-blue-200/20 text-[10px] uppercase tracking-[0.2em]">
-              Precision Crafted for A-Z Home Loans
+              Precision Crafted for A to Z Home Loans
             </p>
           </div>
         </div>

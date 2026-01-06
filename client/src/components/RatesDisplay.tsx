@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { type Rate, type Lead } from "@shared/schema";
-import { Check, ArrowRight, DollarSign, Calculator, Info, ChevronDown, ChevronUp, Search, ShieldCheck, User } from "lucide-react";
+import { Check, ArrowRight, DollarSign, Calculator, Info, ChevronDown, ChevronUp, Search, ShieldCheck, User, Star } from "lucide-react";
+import brokerPhoto from "@assets/profile_picture_1767718796633.JPEG";
 import { GlassButton } from "./ui/glass-button";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,16 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 const creditScoreLabels: Record<string, string> = {
+  "780+": "780+",
+  "760-780": "760-780",
+  "740-759": "740-759",
+  "720-739": "720-739",
+  "700-719": "700-719",
+  "680-699": "680-699",
+  "640-679": "640-679",
+  "620-639": "620-639",
+  "601-619": "601-619",
+  "580-600": "580-600",
   excellent: "740-850",
   good: "700-739",
   fair: "650-699",
@@ -301,10 +312,16 @@ function YourDetailsPanel({ lead, isExpanded, onToggle, onUpdateRates, isUpdatin
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="excellent">Excellent (740-850)</SelectItem>
-                      <SelectItem value="good">Good (700-739)</SelectItem>
-                      <SelectItem value="fair">Fair (650-699)</SelectItem>
-                      <SelectItem value="poor">Poor (300-649)</SelectItem>
+                      <SelectItem value="780+">780+</SelectItem>
+                      <SelectItem value="760-780">760-780</SelectItem>
+                      <SelectItem value="740-759">740-759</SelectItem>
+                      <SelectItem value="720-739">720-739</SelectItem>
+                      <SelectItem value="700-719">700-719</SelectItem>
+                      <SelectItem value="680-699">680-699</SelectItem>
+                      <SelectItem value="640-679">640-679</SelectItem>
+                      <SelectItem value="620-639">620-639</SelectItem>
+                      <SelectItem value="601-619">601-619</SelectItem>
+                      <SelectItem value="580-600">580-600</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -424,20 +441,74 @@ function TrustIndicators() {
   );
 }
 
+const googleReviews = [
+  { name: "Michael R.", text: "Alan made the entire process seamless. Best rates I found anywhere!", rating: 5 },
+  { name: "Sarah T.", text: "Incredibly responsive and knowledgeable. Closed in record time!", rating: 5 },
+  { name: "James L.", text: "A to Z Home Loans saved us thousands. Highly recommend!", rating: 5 },
+  { name: "Emily C.", text: "Professional, honest, and patient. Will use again for our next home.", rating: 5 },
+  { name: "David M.", text: "Alan explained everything clearly. No hidden fees or surprises.", rating: 5 },
+  { name: "Jennifer W.", text: "Found us a rate 0.5% lower than our bank. Amazing service!", rating: 5 },
+];
+
+function FloatingReviews() {
+  return (
+    <div className="relative overflow-hidden py-4">
+      <div className="flex gap-4 animate-marquee-slow">
+        {[...googleReviews, ...googleReviews].map((review, i) => (
+          <div
+            key={i}
+            className="flex-shrink-0 glass-card rounded-lg p-3 w-72 border border-white/10"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex text-yellow-400">
+                {[...Array(review.rating)].map((_, j) => (
+                  <Star key={j} className="w-3 h-3 fill-current" />
+                ))}
+              </div>
+              <span className="text-xs text-blue-200/60">{review.name}</span>
+            </div>
+            <p className="text-sm text-white/80 line-clamp-2">{review.text}</p>
+          </div>
+        ))}
+      </div>
+      <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-[#050818] to-transparent pointer-events-none" />
+      <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-[#050818] to-transparent pointer-events-none" />
+    </div>
+  );
+}
+
 function BrokerBranding() {
   return (
-    <div className="glass-card rounded-xl p-4 flex items-center gap-4 max-w-md mx-auto">
-      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-        AZ
+    <div className="space-y-4">
+      <div className="glass-card rounded-xl p-4 flex items-center gap-4 max-w-md mx-auto">
+        <img
+          src={brokerPhoto}
+          alt="Your Mortgage Broker"
+          className="w-14 h-14 rounded-full object-cover flex-shrink-0 border-2 border-[#5cffb5]/30"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] text-blue-200/40 uppercase tracking-widest font-bold">Your Mortgage Broker</div>
+          <div className="text-white font-semibold">A to Z Home Loans</div>
+          <div className="text-xs text-blue-200/60">NMLS #2449185</div>
+        </div>
+        <div className="flex-shrink-0 flex flex-col items-center gap-1">
+          <div className="flex text-yellow-400">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="w-3 h-3 fill-current" />
+            ))}
+          </div>
+          <a
+            href="https://www.google.com/search?q=a+to+z+home+loans"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[9px] text-blue-200/50 hover:text-white transition-colors"
+          >
+            Google Reviews
+          </a>
+        </div>
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-[10px] text-blue-200/40 uppercase tracking-widest font-bold">Your Mortgage Broker</div>
-        <div className="text-white font-semibold">A-Z Home Loans</div>
-        <div className="text-xs text-blue-200/60">NMLS #2449185</div>
-      </div>
-      <div className="flex-shrink-0">
-        <ShieldCheck className="w-5 h-5 text-[#5cffb5]" />
-      </div>
+      
+      <FloatingReviews />
     </div>
   );
 }
