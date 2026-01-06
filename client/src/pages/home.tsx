@@ -188,22 +188,16 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="space-y-6 text-blue-200/40 text-[10px] leading-relaxed border-t border-white/5 pt-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-              <div className="space-y-4">
-                <p>
-                  We comply with fair lending laws, such as the Equal Credit Opportunity Act, the Fair Housing Act, and the Home Mortgage Disclosure Act. We require annual fair lending training of all of our employees. And we strive every day, and in many different ways, to make sure that everyone has a positive experience with our company.
-                </p>
-                <p>
-                  We adhere to marketing rules, including those that address unfair or deceptive practices. We ensure that we provide clear, honest and accurate information to our customers and to the public. We do not want to bring customers in under false pretenses. We attract customers by providing them with an accurate understanding of what products we offer and how we do business.
-                </p>
-              </div>
-              <div className="space-y-4">
-                <p>
-                  We are committed to complying with both the letter and the spirit of fair lending rules. this is not an intent to lend please get a loan estimate for most accurate up to date figures.
-                </p>
-              </div>
-            </div>
+          <div className="space-y-4 text-blue-200/40 text-[10px] leading-relaxed border-t border-white/5 pt-8 text-left">
+            <p>
+              We comply with fair lending laws, such as the Equal Credit Opportunity Act, the Fair Housing Act, and the Home Mortgage Disclosure Act. We require annual fair lending training of all of our employees. And we strive every day, and in many different ways, to make sure that everyone has a positive experience with our company.
+            </p>
+            <p>
+              We adhere to marketing rules, including those that address unfair or deceptive practices. We ensure that we provide clear, honest and accurate information to our customers and to the public. We do not want to bring customers in under false pretenses. We attract customers by providing them with an accurate understanding of what products we offer and how we do business.
+            </p>
+            <p>
+              We are committed to complying with both the letter and the spirit of fair lending rules. This is not an intent to lend. Please get a loan estimate for most accurate up to date figures.
+            </p>
           </div>
 
           <div className="pt-8 text-center">
