@@ -1,9 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type InsertLead, type Rate } from "@shared/routes";
+import { api } from "@shared/routes";
+import { type InsertLead, type Lead, type Rate } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
 type CreateLeadResponse = {
-  lead: InsertLead;
+  lead: Lead;
   rates: Rate[];
 };
 
