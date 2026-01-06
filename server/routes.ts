@@ -11,8 +11,12 @@ export async function registerRoutes(
 ): Promise<Server> {
   
   // Admin credentials from environment (can be changed in Replit Secrets panel for recovery)
-  const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "checkmy2024";
+  const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+  
+  if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
+    console.warn("WARNING: ADMIN_USERNAME and ADMIN_PASSWORD secrets are not set. Admin login will be disabled.");
+  }
 
   // Middleware to check admin authentication
   function requireAdmin(req: Request, res: Response, next: NextFunction) {
@@ -26,6 +30,10 @@ export async function registerRoutes(
 
   // Admin login endpoint
   app.post("/api/admin/login", (req, res) => {
+    if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
+      return res.status(503).json({ message: "Admin login is not configured. Please set ADMIN_USERNAME and ADMIN_PASSWORD in Replit Secrets." });
+    }
+    
     const { username, password } = req.body;
     const session = (req as any).session;
     
