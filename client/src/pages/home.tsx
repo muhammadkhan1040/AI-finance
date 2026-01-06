@@ -3,45 +3,8 @@ import { LeadForm } from "@/components/LeadForm";
 import { RatesDisplay } from "@/components/RatesDisplay";
 import { type Rate, type Lead } from "@shared/schema";
 import { motion } from "framer-motion";
-import { Zap, ShieldCheck, Clock, HelpCircle, Home as HomeIcon, Calculator, FileText } from "lucide-react";
+import { Zap, ShieldCheck, Clock, HelpCircle } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
-function NavigationBar() {
-  return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#050818]/80 backdrop-blur-xl border-b border-white/10">
-      <div className="max-w-6xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-center gap-6 md:gap-10">
-          <a 
-            href="/"
-            className="flex items-center gap-2 text-white/80 hover:text-[#5cffb5] transition-colors text-sm font-medium"
-            data-testid="nav-home"
-          >
-            <HomeIcon className="w-4 h-4" />
-            <span>Home</span>
-          </a>
-          <a 
-            href="/calculators"
-            className="flex items-center gap-2 text-white/80 hover:text-[#5cffb5] transition-colors text-sm font-medium"
-            data-testid="nav-calculator"
-          >
-            <Calculator className="w-4 h-4" />
-            <span>Calculators</span>
-          </a>
-          <a 
-            href="https://atozhomeloans.com/resources" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-white/80 hover:text-[#5cffb5] transition-colors text-sm font-medium"
-            data-testid="nav-resources"
-          >
-            <FileText className="w-4 h-4" />
-            <span>Resources</span>
-          </a>
-        </div>
-      </div>
-    </nav>
-  );
-}
 
 export default function Home() {
   const [ratesData, setRatesData] = useState<{rates: Rate[], lead: Lead} | null>(null);
@@ -92,9 +55,8 @@ export default function Home() {
     <div className="min-h-screen relative overflow-hidden flex flex-col">
       <div className="bg-galaxy" />
       <div className="bg-stars" />
-      <NavigationBar />
       
-      <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 pt-16 md:pt-20 relative z-10">
+      <main className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 relative z-10">
         
         {!ratesData ? (
           <div className="w-full max-w-6xl mx-auto space-y-24 py-12">
