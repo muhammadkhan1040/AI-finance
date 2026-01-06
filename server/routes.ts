@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
@@ -10,6 +10,51 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Admin credentials from environment (can be changed in Replit Secrets panel for recovery)
+  const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "checkmy2024";
+
+  // Middleware to check admin authentication
+  function requireAdmin(req: Request, res: Response, next: NextFunction) {
+    const session = (req as any).session;
+    if (session?.isAdmin) {
+      next();
+    } else {
+      res.status(401).json({ message: "Unauthorized" });
+    }
+  }
+
+  // Admin login endpoint
+  app.post("/api/admin/login", (req, res) => {
+    const { username, password } = req.body;
+    const session = (req as any).session;
+    
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+      session.isAdmin = true;
+      res.json({ success: true });
+    } else {
+      res.status(401).json({ message: "Invalid credentials" });
+    }
+  });
+
+  // Admin logout endpoint
+  app.post("/api/admin/logout", (req, res) => {
+    const session = (req as any).session;
+    session.destroy((err: Error) => {
+      if (err) {
+        res.status(500).json({ message: "Logout failed" });
+      } else {
+        res.json({ success: true });
+      }
+    });
+  });
+
+  // Check admin session status
+  app.get("/api/admin/session", (req, res) => {
+    const session = (req as any).session;
+    res.json({ isAdmin: !!session?.isAdmin });
+  });
+
   // Helper to generate mock rates based on credit score
   function getMockRates(score: string, amount: number, term: string | undefined): Rate[] {
     let baseRate = 6.5; 
@@ -107,8 +152,8 @@ export async function registerRoutes(
     ];
   }
 
-  // Get all leads
-  app.get(api.leads.list.path, async (req, res) => {
+  // Get all leads (protected)
+  app.get(api.leads.list.path, requireAdmin, async (req, res) => {
     try {
       const allLeads = await storage.getLeads();
       res.json(allLeads);

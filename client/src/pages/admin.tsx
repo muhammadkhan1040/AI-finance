@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { type Lead } from "@shared/schema";
-import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw } from "lucide-react";
-import { Link } from "wouter";
+import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw, LogOut } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -13,11 +13,47 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format } from "date-fns";
+import { useEffect, useState } from "react";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Admin() {
+  const [, setLocation] = useLocation();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/admin/session")
+      .then(res => res.json())
+      .then(data => {
+        if (!data.isAdmin) {
+          setLocation("/admin/login");
+        } else {
+          setIsCheckingAuth(false);
+        }
+      })
+      .catch(() => setLocation("/admin/login"));
+  }, [setLocation]);
+
   const { data: leads, isLoading, refetch } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
+    enabled: !isCheckingAuth,
   });
+
+  const handleLogout = async () => {
+    try {
+      await apiRequest("POST", "/api/admin/logout", {});
+      setLocation("/admin/login");
+    } catch (err) {
+      console.error("Logout failed");
+    }
+  };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-[#050818] flex items-center justify-center">
+        <div className="text-blue-200/60">Checking authentication...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#050818] text-white">
@@ -34,10 +70,16 @@ export default function Admin() {
               <p className="text-blue-200/60">Manage leads and rate sheets</p>
             </div>
           </div>
-          <Button onClick={() => refetch()} variant="outline" data-testid="button-refresh-leads">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button onClick={() => refetch()} variant="outline" data-testid="button-refresh-leads">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+            <Button onClick={handleLogout} variant="ghost" data-testid="button-logout">
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
