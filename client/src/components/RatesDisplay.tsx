@@ -442,13 +442,15 @@ function TrustIndicators() {
 }
 
 const googleReviews = [
-  { name: "Michael R.", text: "Alan made the entire process seamless. Best rates I found anywhere!", rating: 5 },
-  { name: "Sarah T.", text: "Incredibly responsive and knowledgeable. Closed in record time!", rating: 5 },
-  { name: "James L.", text: "A to Z Home Loans saved us thousands. Highly recommend!", rating: 5 },
-  { name: "Emily C.", text: "Professional, honest, and patient. Will use again for our next home.", rating: 5 },
-  { name: "David M.", text: "Alan explained everything clearly. No hidden fees or surprises.", rating: 5 },
-  { name: "Jennifer W.", text: "Found us a rate 0.5% lower than our bank. Amazing service!", rating: 5 },
+  { name: "Phoenix Buyer", text: "He truly cares and will get your loan through. Best experience ever!", rating: 5 },
+  { name: "First Time Buyer", text: "Made the VA loan process so easy. Highly recommend for veterans!", rating: 5 },
+  { name: "Happy Homeowner", text: "Found us the best rate in Arizona. Closed faster than expected!", rating: 5 },
+  { name: "Refinance Client", text: "Saved us thousands on our refinance. Professional and honest.", rating: 5 },
+  { name: "Surprise Family", text: "Excellent communication throughout. Always answered our questions.", rating: 5 },
+  { name: "Scottsdale Couple", text: "Top-notch service from start to finish. Would use again!", rating: 5 },
 ];
+const GOOGLE_REVIEW_COUNT = 25;
+const GOOGLE_RATING = 5.0;
 
 function FloatingReviews() {
   return (
@@ -497,7 +499,7 @@ function StickyBrokerBar() {
                     <Star key={i} className="w-3 h-3 fill-current" />
                   ))}
                 </div>
-                <span className="text-[10px] text-blue-200/50">NMLS #2449185</span>
+                <span className="text-[10px] text-blue-200/50">{GOOGLE_RATING} ({GOOGLE_REVIEW_COUNT} reviews)</span>
               </div>
             </div>
           </div>
