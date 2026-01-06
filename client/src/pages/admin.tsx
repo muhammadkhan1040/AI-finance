@@ -16,6 +16,14 @@ import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
 
+// Map credit score labels to ranges
+const creditScoreRanges: Record<string, string> = {
+  excellent: "740-850",
+  good: "700-739",
+  fair: "650-699",
+  poor: "300-649",
+};
+
 export default function Admin() {
   const [, setLocation] = useLocation();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -160,24 +168,38 @@ export default function Admin() {
                       <TableHead className="text-blue-200/60">Name</TableHead>
                       <TableHead className="text-blue-200/60">Email</TableHead>
                       <TableHead className="text-blue-200/60">Phone</TableHead>
-                      <TableHead className="text-blue-200/60">Loan Amount</TableHead>
                       <TableHead className="text-blue-200/60">Purpose</TableHead>
-                      <TableHead className="text-blue-200/60">Credit</TableHead>
+                      <TableHead className="text-blue-200/60">Loan Amount</TableHead>
+                      <TableHead className="text-blue-200/60">Property Value</TableHead>
+                      <TableHead className="text-blue-200/60">Property Type</TableHead>
+                      <TableHead className="text-blue-200/60">Loan Type</TableHead>
+                      <TableHead className="text-blue-200/60">Loan Term</TableHead>
+                      <TableHead className="text-blue-200/60">Credit Score</TableHead>
+                      <TableHead className="text-blue-200/60">Income</TableHead>
+                      <TableHead className="text-blue-200/60">Zip Code</TableHead>
+                      <TableHead className="text-blue-200/60">First Time Buyer</TableHead>
                       <TableHead className="text-blue-200/60">Submitted</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {leads.map((lead) => (
                       <TableRow key={lead.id} className="border-white/10 hover:bg-white/5">
-                        <TableCell className="text-white font-medium">
+                        <TableCell className="text-white font-medium whitespace-nowrap">
                           {lead.firstName} {lead.lastName}
                         </TableCell>
                         <TableCell className="text-blue-200/80">{lead.email}</TableCell>
-                        <TableCell className="text-blue-200/80">{lead.phone}</TableCell>
-                        <TableCell className="text-white">${lead.loanAmount.toLocaleString()}</TableCell>
+                        <TableCell className="text-blue-200/80 whitespace-nowrap">{lead.phone}</TableCell>
                         <TableCell className="capitalize text-blue-200/80">{lead.loanPurpose}</TableCell>
-                        <TableCell className="text-blue-200/80">{lead.creditScore}</TableCell>
-                        <TableCell className="text-blue-200/60 text-sm">
+                        <TableCell className="text-white whitespace-nowrap">${lead.loanAmount.toLocaleString()}</TableCell>
+                        <TableCell className="text-white whitespace-nowrap">${lead.propertyValue.toLocaleString()}</TableCell>
+                        <TableCell className="text-blue-200/80 capitalize whitespace-nowrap">{lead.propertyType.replace(/_/g, ' ')}</TableCell>
+                        <TableCell className="text-blue-200/80 capitalize">{lead.loanType}</TableCell>
+                        <TableCell className="text-blue-200/80">{lead.loanTerm}</TableCell>
+                        <TableCell className="text-blue-200/80 whitespace-nowrap">{creditScoreRanges[lead.creditScore] || lead.creditScore}</TableCell>
+                        <TableCell className="text-white whitespace-nowrap">${lead.annualIncome.toLocaleString()}</TableCell>
+                        <TableCell className="text-blue-200/80">{lead.zipCode}</TableCell>
+                        <TableCell className="text-blue-200/80 capitalize">{lead.isFirstTimeBuyer === 'yes' ? 'Yes' : 'No'}</TableCell>
+                        <TableCell className="text-blue-200/60 text-sm whitespace-nowrap">
                           {lead.createdAt ? (() => {
                             try {
                               return format(new Date(lead.createdAt), "MMM d, h:mm a");
