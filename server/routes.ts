@@ -37,7 +37,7 @@ export async function registerRoutes(
     const { username, password } = req.body;
     const session = (req as any).session;
     
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    if (username.toLowerCase() === ADMIN_USERNAME.toLowerCase() && password === ADMIN_PASSWORD) {
       session.isAdmin = true;
       res.json({ success: true });
     } else {
