@@ -130,10 +130,6 @@ export default function Home() {
               className="max-w-3xl mx-auto w-full px-4"
             >
               <div className="text-center mb-12">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 mb-4">
-                  <HelpCircle className="w-4 h-4 text-[#0fd0ff]" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-blue-200">Common Questions</span>
-                </div>
                 <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Frequently Asked Questions</h2>
                 <p className="text-blue-200/60">Everything you need to know about checking your rates.</p>
               </div>
