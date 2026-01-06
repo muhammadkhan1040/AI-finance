@@ -628,6 +628,20 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
         <p className="text-lg text-blue-200/70 max-w-xl mx-auto">
           Based on today's market data, here are the best options we found for your scenario.
         </p>
+        
+        <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs text-blue-200/60">
+          <Info className="w-3 h-3" />
+          <span>Compare to the national average:</span>
+          <a 
+            href="https://www.freddiemac.com/pmms" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-[#5cffb5] hover:underline font-medium"
+            data-testid="link-freddie-mac-pmms"
+          >
+            Freddie Mac PMMS
+          </a>
+        </div>
       </div>
 
       <YourDetailsPanel

@@ -58,3 +58,20 @@ export const ratesSchema = z.object({
 });
 
 export type Rate = z.infer<typeof ratesSchema>;
+
+export const rateSheets = pgTable("rate_sheets", {
+  id: serial("id").primaryKey(),
+  lenderName: text("lender_name").notNull(),
+  fileName: text("file_name").notNull(),
+  fileData: text("file_data").notNull(),
+  isActive: text("is_active").notNull().default("yes"),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+});
+
+export const insertRateSheetSchema = createInsertSchema(rateSheets).omit({
+  id: true,
+  uploadedAt: true,
+});
+
+export type RateSheet = typeof rateSheets.$inferSelect;
+export type InsertRateSheet = z.infer<typeof insertRateSheetSchema>;

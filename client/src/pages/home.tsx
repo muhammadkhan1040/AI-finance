@@ -150,6 +150,38 @@ export default function Home() {
               </div>
             </motion.section>
           </div>
+        ) : ratesData.lead.loanType === 'reverse' ? (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-4xl mx-auto py-8"
+          >
+            <div className="glass-card rounded-2xl p-6 md:p-8 space-y-6">
+              <div className="text-center">
+                <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Reverse Mortgage Calculator</h2>
+                <p className="text-blue-200/70">Thank you, {ratesData.lead.firstName}! Use the calculator below to explore your reverse mortgage options.</p>
+              </div>
+              
+              <div className="bg-white rounded-xl overflow-hidden" style={{ minHeight: '600px' }}>
+                <iframe 
+                  src="https://illustrator.financeofamerica.com/widgets/calculator/0_YgtdURPZuRMYdFB9abOo8zhhxigE4rxcI4GdPDa9bSLzpD18XSYRntxldn1YBNaiVmC9sBJJuIMookbIQGRwI3exLFue52INY14yW0faU"
+                  title="Finance of America Reverse Mortgage Calculator"
+                  className="w-full h-[600px] border-0"
+                  data-testid="iframe-reverse-calculator"
+                />
+              </div>
+              
+              <div className="text-center">
+                <button
+                  onClick={() => setRatesData(null)}
+                  className="text-blue-200/60 hover:text-white text-sm underline transition-colors"
+                  data-testid="button-start-over"
+                >
+                  Start Over
+                </button>
+              </div>
+            </div>
+          </motion.div>
         ) : (
           <RatesDisplay 
             rates={ratesData!.rates} 

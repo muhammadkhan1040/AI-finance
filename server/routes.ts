@@ -161,6 +161,89 @@ export async function registerRoutes(
     ];
   }
 
+  // Get all rate sheets (protected)
+  app.get("/api/admin/rate-sheets", requireAdmin, async (req, res) => {
+    try {
+      const sheets = await storage.getRateSheets();
+      res.json(sheets.map(s => ({
+        id: s.id,
+        lenderName: s.lenderName,
+        fileName: s.fileName,
+        isActive: s.isActive,
+        uploadedAt: s.uploadedAt
+      })));
+    } catch (err) {
+      console.error("Error fetching rate sheets:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Upload rate sheet (protected)
+  app.post("/api/admin/rate-sheets", requireAdmin, async (req, res) => {
+    try {
+      const { lenderName, fileName, fileData } = req.body;
+      
+      if (!lenderName || !fileName || !fileData) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Check limit of 5 active rate sheets
+      const existing = await storage.getRateSheets();
+      if (existing.length >= 5) {
+        return res.status(400).json({ message: "Maximum of 5 rate sheets allowed. Please delete one first." });
+      }
+
+      const rateSheet = await storage.createRateSheet({
+        lenderName,
+        fileName,
+        fileData,
+        isActive: "yes"
+      });
+
+      res.status(201).json({
+        id: rateSheet.id,
+        lenderName: rateSheet.lenderName,
+        fileName: rateSheet.fileName,
+        isActive: rateSheet.isActive,
+        uploadedAt: rateSheet.uploadedAt
+      });
+    } catch (err) {
+      console.error("Error uploading rate sheet:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Delete rate sheet (protected)
+  app.delete("/api/admin/rate-sheets/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      await storage.deleteRateSheet(id);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Error deleting rate sheet:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Toggle rate sheet active status (protected)
+  app.patch("/api/admin/rate-sheets/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { isActive } = req.body;
+      const updated = await storage.toggleRateSheet(id, isActive);
+      res.json({
+        id: updated.id,
+        lenderName: updated.lenderName,
+        fileName: updated.fileName,
+        isActive: updated.isActive,
+        uploadedAt: updated.uploadedAt
+      });
+    } catch (err) {
+      console.error("Error updating rate sheet:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Sync leads to Google Sheets (protected)
   app.post("/api/admin/sync-sheets", requireAdmin, async (req, res) => {
     try {

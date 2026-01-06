@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { type Lead } from "@shared/schema";
-import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw, LogOut, TrendingUp, TrendingDown, Calendar, Sheet, Loader2 } from "lucide-react";
+import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw, LogOut, TrendingUp, TrendingDown, Calendar, Sheet, Loader2, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,9 +56,85 @@ export default function Admin() {
     enabled: !isCheckingAuth,
   });
 
+  interface RateSheetInfo {
+    id: number;
+    lenderName: string;
+    fileName: string;
+    isActive: string;
+    uploadedAt: string;
+  }
+
+  const { data: rateSheets, refetch: refetchRateSheets } = useQuery<RateSheetInfo[]>({
+    queryKey: ["/api/admin/rate-sheets"],
+    enabled: !isCheckingAuth,
+  });
+
   const handleRefresh = () => {
     refetch();
     refetchStats();
+    refetchRateSheets();
+  };
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadLenderName, setUploadLenderName] = useState("");
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!uploadLenderName.trim()) {
+      alert("Please enter a lender name first");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const fileData = event.target?.result as string;
+        const response = await apiRequest("POST", "/api/admin/rate-sheets", {
+          lenderName: uploadLenderName.trim(),
+          fileName: file.name,
+          fileData: fileData
+        });
+        
+        if (response.ok) {
+          setUploadLenderName("");
+          refetchRateSheets();
+        } else {
+          const error = await response.json();
+          alert(error.message || "Upload failed");
+        }
+        setIsUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Failed to upload rate sheet");
+      setIsUploading(false);
+    }
+    e.target.value = "";
+  };
+
+  const handleDeleteRateSheet = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this rate sheet?")) return;
+    try {
+      await apiRequest("DELETE", `/api/admin/rate-sheets/${id}`, {});
+      refetchRateSheets();
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
+  };
+
+  const handleToggleRateSheet = async (id: number, currentActive: string) => {
+    try {
+      await apiRequest("PATCH", `/api/admin/rate-sheets/${id}`, {
+        isActive: currentActive === "yes" ? "no" : "yes"
+      });
+      refetchRateSheets();
+    } catch (err) {
+      console.error("Toggle error:", err);
+    }
   };
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -192,23 +268,80 @@ export default function Admin() {
                   <FileSpreadsheet className="w-5 h-5 text-green-400" />
                 </div>
                 <div>
-                  <CardTitle className="text-white">Rate Sheets</CardTitle>
+                  <CardTitle className="text-white">Rate Sheets ({rateSheets?.length ?? 0}/5)</CardTitle>
                   <CardDescription className="text-blue-200/60">Upload lender pricing</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <p className="text-sm text-blue-200/60">
-                  Upload CSV or Excel files with lender rate sheets. The system will parse and apply them to new quotes.
-                </p>
-                <div className="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:border-blue-500/50 transition-colors cursor-pointer">
-                  <Upload className="w-8 h-8 mx-auto mb-3 text-blue-400" />
-                  <p className="text-sm text-white font-medium">Drop rate sheet here</p>
-                  <p className="text-xs text-blue-200/40 mt-1">CSV, XLS, XLSX supported</p>
-                </div>
+                {rateSheets && rateSheets.length > 0 && (
+                  <div className="space-y-2">
+                    {rateSheets.map((sheet) => (
+                      <div 
+                        key={sheet.id} 
+                        className={`flex items-center justify-between gap-2 p-3 rounded-lg ${sheet.isActive === 'yes' ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5 border border-white/10 opacity-50'}`}
+                        data-testid={`rate-sheet-${sheet.id}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white font-medium truncate">{sheet.lenderName}</p>
+                          <p className="text-xs text-blue-200/40 truncate">{sheet.fileName}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            size="icon" 
+                            variant="ghost"
+                            onClick={() => handleToggleRateSheet(sheet.id, sheet.isActive)}
+                            data-testid={`button-toggle-sheet-${sheet.id}`}
+                          >
+                            {sheet.isActive === 'yes' ? <ToggleRight className="w-4 h-4 text-green-400" /> : <ToggleLeft className="w-4 h-4 text-blue-200/40" />}
+                          </Button>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            onClick={() => handleDeleteRateSheet(sheet.id)}
+                            data-testid={`button-delete-sheet-${sheet.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-400" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {(!rateSheets || rateSheets.length < 5) && (
+                  <>
+                    <input
+                      type="text"
+                      placeholder="Lender name (e.g., UWM, PRMG)"
+                      value={uploadLenderName}
+                      onChange={(e) => setUploadLenderName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-blue-200/40 text-sm"
+                      data-testid="input-lender-name"
+                    />
+                    <label className="border-2 border-dashed border-white/20 rounded-xl p-6 text-center hover:border-blue-500/50 transition-colors cursor-pointer block">
+                      <input 
+                        type="file" 
+                        accept=".csv,.xls,.xlsx"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        disabled={isUploading}
+                        data-testid="input-rate-sheet-file"
+                      />
+                      {isUploading ? (
+                        <Loader2 className="w-6 h-6 mx-auto mb-2 text-blue-400 animate-spin" />
+                      ) : (
+                        <Upload className="w-6 h-6 mx-auto mb-2 text-blue-400" />
+                      )}
+                      <p className="text-sm text-white font-medium">Drop rate sheet here</p>
+                      <p className="text-xs text-blue-200/40 mt-1">CSV, XLS, XLSX supported</p>
+                    </label>
+                  </>
+                )}
+
                 <p className="text-xs text-blue-200/40 italic">
-                  Rate sheet upload feature coming soon. Currently using demo rates from PRMG, UWM, and Flagstar.
+                  Upload up to 5 wholesale lender rate sheets for reference. Rate parsing integration coming soon - currently using demo rates from PRMG, UWM, and Flagstar.
                 </p>
               </div>
             </CardContent>
