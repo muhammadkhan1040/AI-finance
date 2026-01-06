@@ -22,14 +22,14 @@ function NavigationBar() {
             <span>Home</span>
           </a>
           <a 
-            href="https://atozhomeloans.com/calculator" 
+            href="https://atozhomeloans.com/calculators" 
             target="_blank" 
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-white/80 hover:text-[#5cffb5] transition-colors text-sm font-medium"
             data-testid="nav-calculator"
           >
             <Calculator className="w-4 h-4" />
-            <span>Calculator</span>
+            <span>Calculators</span>
           </a>
           <a 
             href="https://atozhomeloans.com/resources" 
