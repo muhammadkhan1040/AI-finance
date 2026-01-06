@@ -3,7 +3,6 @@ import { type Rate, type Lead } from "@shared/schema";
 import { Check, ArrowRight, DollarSign, Calculator, Info, ChevronDown, ChevronUp, Search, ShieldCheck, User, Star } from "lucide-react";
 import brokerPhoto from "@assets/profile_picture_1767718796633.JPEG";
 import atozLogo from "@assets/offical_logo_color_correct_normal_backgoorund_1767722280788.png";
-import equalHousingLogo from "@assets/stock_images/equal_housing_opport_c2b4382a.jpg";
 import { GlassButton } from "./ui/glass-button";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -557,11 +556,6 @@ function DisclaimerSection() {
           src={atozLogo} 
           alt="A to Z Home Loans" 
           className="h-12 object-contain"
-        />
-        <img 
-          src={equalHousingLogo} 
-          alt="Equal Housing Opportunity" 
-          className="h-10 object-contain"
         />
       </div>
     </div>
