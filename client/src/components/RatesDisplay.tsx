@@ -497,6 +497,7 @@ function StickyBrokerBar() {
               <div className="text-white font-bold text-sm">Jerald Acosta</div>
               <div className="text-white/80 text-xs">A to Z Home Loans</div>
               <div className="text-[10px] text-blue-200/50">NMLS #1388911</div>
+              <div className="text-[10px] text-blue-200/50">NMLS #2449185</div>
               <a 
                 href={GOOGLE_REVIEWS_URL}
                 target="_blank"
