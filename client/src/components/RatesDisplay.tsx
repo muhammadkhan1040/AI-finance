@@ -1,14 +1,32 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { type Rate, type Lead } from "@shared/schema";
-import { Check, ArrowRight, DollarSign, Calculator, Info } from "lucide-react";
+import { Check, ArrowRight, DollarSign, Calculator, Info, ChevronDown, ChevronUp, Search, ShieldCheck, User } from "lucide-react";
 import { GlassButton } from "./ui/glass-button";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+
+const creditScoreLabels: Record<string, string> = {
+  excellent: "740-850",
+  good: "700-739",
+  fair: "650-699",
+  poor: "300-649",
+};
 
 interface ConfirmationViewProps {
   rate: Rate;
@@ -35,7 +53,6 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Selected Rate Card */}
         <div className="glass-card rounded-2xl p-6 border-[#5cffb5]/30 bg-[#5cffb5]/5">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-bold uppercase tracking-widest text-[#5cffb5]">Selected Quote</span>
@@ -79,7 +96,6 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
           </div>
         </div>
 
-        {/* Application Details */}
         <div className="glass-card rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="text-xs font-bold uppercase tracking-widest text-blue-300">Your Details</div>
@@ -172,14 +188,305 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
   );
 }
 
+interface YourDetailsPanelProps {
+  lead: Lead;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onUpdateRates: (updatedLead: Lead) => void;
+  isUpdating: boolean;
+}
+
+function YourDetailsPanel({ lead, isExpanded, onToggle, onUpdateRates, isUpdating }: YourDetailsPanelProps) {
+  const [editedLead, setEditedLead] = useState<Lead>(lead);
+
+  const handleSubmit = () => {
+    onUpdateRates(editedLead);
+  };
+
+  const handleCancel = () => {
+    setEditedLead(lead);
+    onToggle();
+  };
+
+  return (
+    <div className="glass-card rounded-2xl overflow-hidden mb-6">
+      <button
+        onClick={onToggle}
+        className="w-full p-4 flex items-center justify-between text-left hover-elevate transition-all"
+        data-testid="button-toggle-details"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-blue-500/20">
+            <User className="w-4 h-4 text-blue-400" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-white">Your Details</div>
+            {!isExpanded && (
+              <div className="text-xs text-blue-200/60 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                <span className="capitalize">{lead.loanPurpose}</span>
+                <span>Credit: {creditScoreLabels[lead.creditScore] || lead.creditScore}</span>
+                <span>${lead.loanAmount.toLocaleString()}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isExpanded && (
+            <span className="text-xs text-[#5cffb5] font-bold uppercase tracking-wide">Edit Details</span>
+          )}
+          {isExpanded ? (
+            <ChevronUp className="w-5 h-5 text-blue-200/60" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-blue-200/60" />
+          )}
+        </div>
+      </button>
+
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="p-4 pt-0 border-t border-white/10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                <div className="space-y-2">
+                  <Label className="text-blue-200/60 text-xs">Loan Purpose</Label>
+                  <Select
+                    value={editedLead.loanPurpose}
+                    onValueChange={(value) => setEditedLead({ ...editedLead, loanPurpose: value })}
+                  >
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-loan-purpose">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="purchase">Purchase</SelectItem>
+                      <SelectItem value="refinance">Refinance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-blue-200/60 text-xs">Loan Amount</Label>
+                  <Input
+                    type="number"
+                    value={editedLead.loanAmount}
+                    onChange={(e) => setEditedLead({ ...editedLead, loanAmount: parseInt(e.target.value) || 0 })}
+                    className="bg-white/5 border-white/10 text-white"
+                    data-testid="input-loan-amount"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-blue-200/60 text-xs">Property Value</Label>
+                  <Input
+                    type="number"
+                    value={editedLead.propertyValue}
+                    onChange={(e) => setEditedLead({ ...editedLead, propertyValue: parseInt(e.target.value) || 0 })}
+                    className="bg-white/5 border-white/10 text-white"
+                    data-testid="input-property-value"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-blue-200/60 text-xs">Credit Score Range</Label>
+                  <Select
+                    value={editedLead.creditScore}
+                    onValueChange={(value) => setEditedLead({ ...editedLead, creditScore: value })}
+                  >
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-credit-score">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="excellent">Excellent (740-850)</SelectItem>
+                      <SelectItem value="good">Good (700-739)</SelectItem>
+                      <SelectItem value="fair">Fair (650-699)</SelectItem>
+                      <SelectItem value="poor">Poor (300-649)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-blue-200/60 text-xs">Property Type</Label>
+                  <Select
+                    value={editedLead.propertyType}
+                    onValueChange={(value) => setEditedLead({ ...editedLead, propertyType: value })}
+                  >
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-property-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="single_family">Single Family</SelectItem>
+                      <SelectItem value="condo">Condo</SelectItem>
+                      <SelectItem value="townhouse">Townhouse</SelectItem>
+                      <SelectItem value="multi_family">Multi-Family</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-blue-200/60 text-xs">Loan Type</Label>
+                  <Select
+                    value={editedLead.loanType}
+                    onValueChange={(value) => setEditedLead({ ...editedLead, loanType: value })}
+                  >
+                    <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="select-loan-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="conventional">Conventional</SelectItem>
+                      <SelectItem value="fha">FHA</SelectItem>
+                      <SelectItem value="va">VA</SelectItem>
+                      <SelectItem value="usda">USDA</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-blue-200/60 text-xs">ZIP Code</Label>
+                  <Input
+                    type="text"
+                    value={editedLead.zipCode}
+                    onChange={(e) => setEditedLead({ ...editedLead, zipCode: e.target.value })}
+                    className="bg-white/5 border-white/10 text-white"
+                    data-testid="input-zip-code"
+                    maxLength={5}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-blue-200/60 text-xs">Annual Income</Label>
+                  <Input
+                    type="number"
+                    value={editedLead.annualIncome}
+                    onChange={(e) => setEditedLead({ ...editedLead, annualIncome: parseInt(e.target.value) || 0 })}
+                    className="bg-white/5 border-white/10 text-white"
+                    data-testid="input-annual-income"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isUpdating}
+                  className="flex-1 bg-[#5cffb5] text-black hover:bg-[#5cffb5]/90 font-bold"
+                  data-testid="button-resubmit"
+                >
+                  {isUpdating ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                      Updating...
+                    </span>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4 mr-2" />
+                      Resubmit & Update Rate
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={handleCancel}
+                  variant="outline"
+                  className="border-white/20 text-white hover:bg-white/10"
+                  data-testid="button-cancel-edit"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function TrustIndicators() {
+  return (
+    <div className="flex flex-col md:flex-row items-start md:items-center justify-center gap-4 md:gap-8 py-4 text-sm">
+      <div className="flex items-center gap-2 text-blue-200/70">
+        <Check className="w-4 h-4 text-[#5cffb5]" />
+        <span>One credit check to compare lenders</span>
+      </div>
+      <div className="flex items-center gap-2 text-blue-200/70">
+        <Check className="w-4 h-4 text-[#5cffb5]" />
+        <span>Broker shops multiple lenders for best rate</span>
+      </div>
+      <div className="flex items-center gap-2 text-blue-200/70">
+        <Check className="w-4 h-4 text-[#5cffb5]" />
+        <span>Guided application with the lender shown</span>
+      </div>
+    </div>
+  );
+}
+
+function BrokerBranding() {
+  return (
+    <div className="glass-card rounded-xl p-4 flex items-center gap-4 max-w-md mx-auto">
+      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+        AZ
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[10px] text-blue-200/40 uppercase tracking-widest font-bold">Your Mortgage Broker</div>
+        <div className="text-white font-semibold">A-Z Home Loans</div>
+        <div className="text-xs text-blue-200/60">NMLS #2449185</div>
+      </div>
+      <div className="flex-shrink-0">
+        <ShieldCheck className="w-5 h-5 text-[#5cffb5]" />
+      </div>
+    </div>
+  );
+}
+
 interface RatesDisplayProps {
   rates: Rate[];
   lead: Lead;
   onReset: () => void;
 }
 
-export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
+export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }: RatesDisplayProps) {
   const [selectedRate, setSelectedRate] = useState<Rate | null>(null);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [rates, setRates] = useState<Rate[]>(initialRates);
+  const [lead, setLead] = useState<Lead>(initialLead);
+
+  const handleUpdateRates = async (updatedLead: Lead) => {
+    setIsUpdating(true);
+    try {
+      const payload = {
+        firstName: updatedLead.firstName,
+        lastName: updatedLead.lastName,
+        email: updatedLead.email,
+        phone: updatedLead.phone,
+        loanAmount: updatedLead.loanAmount,
+        loanPurpose: updatedLead.loanPurpose,
+        creditScore: updatedLead.creditScore,
+        zipCode: updatedLead.zipCode,
+        propertyValue: updatedLead.propertyValue,
+        loanTerm: updatedLead.loanTerm,
+        propertyType: updatedLead.propertyType,
+        loanType: updatedLead.loanType,
+        annualIncome: updatedLead.annualIncome,
+        isFirstTimeBuyer: updatedLead.isFirstTimeBuyer,
+      };
+      const response = await apiRequest("POST", "/api/leads", payload);
+      const data = await response.json();
+      setRates(data.rates);
+      setLead(data.lead);
+      setIsDetailsExpanded(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+    } catch (error) {
+      console.error("Failed to update rates:", error);
+      alert("Failed to update rates. Please try again.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   if (selectedRate) {
     return <ConfirmationView rate={selectedRate} lead={lead} onReset={() => setSelectedRate(null)} />;
@@ -188,7 +495,7 @@ export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
   const bestRate = rates.reduce((prev, current) => (prev.rate < current.rate ? prev : current), rates[0]);
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-8 animate-in fade-in duration-700">
+    <div className="w-full max-w-3xl mx-auto space-y-6 animate-in fade-in duration-700">
       <div className="text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 border border-green-500/40 text-green-300 mb-4 backdrop-blur-sm">
           <Check className="w-4 h-4" />
@@ -197,15 +504,18 @@ export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
         <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
           Your Personalized Rates
         </h2>
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl py-3 px-6 inline-block mb-6">
-          <p className="text-[#0fd0ff] font-medium text-sm">
-            Analysis of 3 top lenders complete. We've matched your scenario against current rate sheets to find these options.
-          </p>
-        </div>
         <p className="text-lg text-blue-200/70 max-w-xl mx-auto">
           Based on today's market data, here are the best options we found for your scenario.
         </p>
       </div>
+
+      <YourDetailsPanel
+        lead={lead}
+        isExpanded={isDetailsExpanded}
+        onToggle={() => setIsDetailsExpanded(!isDetailsExpanded)}
+        onUpdateRates={handleUpdateRates}
+        isUpdating={isUpdating}
+      />
 
       <div className="grid gap-6">
         {rates.map((rate, index) => {
@@ -312,7 +622,11 @@ export function RatesDisplay({ rates, lead, onReset }: RatesDisplayProps) {
         })}
       </div>
 
-      <div className="text-center mt-12">
+      <TrustIndicators />
+
+      <BrokerBranding />
+
+      <div className="text-center mt-6">
         <button 
           onClick={onReset}
           className="text-blue-300 hover:text-white underline underline-offset-4 text-sm transition-colors"
