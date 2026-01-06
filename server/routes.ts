@@ -214,6 +214,7 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
+      console.error("Error creating lead:", err);
       res.status(500).json({ message: "Internal server error" });
     }
   });
