@@ -132,3 +132,7 @@
 .animate-marquee-slow {
   animation: marquee 60s linear infinite;
 }
+
+.animate-marquee-medium {
+  animation: marquee 30s linear infinite;
+}

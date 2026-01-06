@@ -452,8 +452,8 @@ const googleReviews = [
 
 function FloatingReviews() {
   return (
-    <div className="relative overflow-hidden py-4">
-      <div className="flex gap-4 animate-marquee-slow">
+    <div className="relative overflow-hidden py-2">
+      <div className="flex gap-4 animate-marquee-medium">
         {[...googleReviews, ...googleReviews].map((review, i) => (
           <div
             key={i}
@@ -477,38 +477,53 @@ function FloatingReviews() {
   );
 }
 
-function BrokerBranding() {
+function StickyBrokerBar() {
   return (
-    <div className="space-y-4">
-      <div className="glass-card rounded-xl p-4 flex items-center gap-4 max-w-md mx-auto">
-        <img
-          src={brokerPhoto}
-          alt="Your Mortgage Broker"
-          className="w-14 h-14 rounded-full object-cover flex-shrink-0 border-2 border-[#5cffb5]/30"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="text-[10px] text-blue-200/40 uppercase tracking-widest font-bold">Your Mortgage Broker</div>
-          <div className="text-white font-semibold">A to Z Home Loans</div>
-          <div className="text-xs text-blue-200/60">NMLS #2449185</div>
-        </div>
-        <div className="flex-shrink-0 flex flex-col items-center gap-1">
-          <div className="flex text-yellow-400">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} className="w-3 h-3 fill-current" />
-            ))}
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#050818]/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-4px_30px_rgba(0,0,0,0.5)]">
+      <FloatingReviews />
+      <div className="px-4 py-3">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <img
+              src={brokerPhoto}
+              alt="Your Mortgage Broker"
+              className="w-12 h-12 rounded-full object-cover flex-shrink-0 border-2 border-[#5cffb5]/30"
+            />
+            <div className="min-w-0">
+              <div className="text-white font-semibold text-sm">A to Z Home Loans</div>
+              <div className="flex items-center gap-2">
+                <div className="flex text-yellow-400">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-3 h-3 fill-current" />
+                  ))}
+                </div>
+                <span className="text-[10px] text-blue-200/50">NMLS #2449185</span>
+              </div>
+            </div>
           </div>
-          <a
-            href="https://www.google.com/search?q=a+to+z+home+loans"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[9px] text-blue-200/50 hover:text-white transition-colors"
-          >
-            Google Reviews
-          </a>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-white/20 text-white hover:bg-white/10"
+              asChild
+            >
+              <a href="tel:+16025555555" data-testid="button-call-broker">
+                Call
+              </a>
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#5cffb5] text-black hover:bg-[#5cffb5]/90 font-bold"
+              asChild
+            >
+              <a href="https://atozhomeloans.my1003app.com/register" target="_blank" rel="noopener noreferrer" data-testid="button-apply-sticky">
+                Apply Now
+              </a>
+            </Button>
+          </div>
         </div>
       </div>
-      
-      <FloatingReviews />
     </div>
   );
 }
@@ -689,9 +704,7 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
 
       <TrustIndicators />
 
-      <BrokerBranding />
-
-      <div className="text-center mt-6">
+      <div className="text-center mt-6 pb-36">
         <button 
           onClick={onReset}
           className="text-blue-300 hover:text-white underline underline-offset-4 text-sm transition-colors"
@@ -699,6 +712,8 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
           Start a new search
         </button>
       </div>
+
+      <StickyBrokerBar />
     </div>
   );
 }
