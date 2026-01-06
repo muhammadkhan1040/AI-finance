@@ -310,7 +310,15 @@ export default function Calculators() {
             </div>
           </section>
 
-          <div className="pb-20" />
+          <div className="pb-20 text-center">
+            <a 
+              href="/admin/login" 
+              className="text-[10px] text-blue-200/30 hover:text-blue-200/50 transition-colors"
+              data-testid="link-admin-login"
+            >
+              Admin
+            </a>
+          </div>
         </div>
       </main>
     </div>
