@@ -482,24 +482,24 @@ function FloatingReviews() {
 function StickyBrokerBar() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#050818]/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-4px_30px_rgba(0,0,0,0.5)]">
-      <FloatingReviews />
       <div className="px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <img
               src={brokerPhoto}
-              alt="Your Mortgage Broker"
+              alt="Jerald Acosta - Mortgage Broker"
               className="w-12 h-12 rounded-full object-cover flex-shrink-0 border-2 border-[#5cffb5]/30"
             />
             <div className="min-w-0">
-              <div className="text-white font-semibold text-sm">A to Z Home Loans</div>
+              <div className="text-white font-bold text-sm">Jerald Acosta</div>
+              <div className="text-white/80 text-xs">A to Z Home Loans</div>
               <div className="flex items-center gap-2">
                 <div className="flex text-yellow-400">
                   {[...Array(5)].map((_, i) => (
                     <Star key={i} className="w-3 h-3 fill-current" />
                   ))}
                 </div>
-                <span className="text-[10px] text-blue-200/50">{GOOGLE_RATING} ({GOOGLE_REVIEW_COUNT} reviews)</span>
+                <span className="text-[10px] text-blue-200/50">NMLS #1388911</span>
               </div>
             </div>
           </div>
