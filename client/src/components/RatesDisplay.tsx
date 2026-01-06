@@ -517,104 +517,98 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
         isUpdating={isUpdating}
       />
 
-      <div className="grid gap-6">
+      <div className="grid gap-3">
         {rates.map((rate, index) => {
           const isBestValue = index === 0;
 
           return (
             <motion.div 
               key={index}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className={`glass-card rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 relative group hover-elevate transition-all duration-300 ${
-                isBestValue ? 'ring-2 ring-blue-500/50 shadow-[0_0_30px_rgba(59,130,246,0.2)]' : ''
+              transition={{ delay: index * 0.05 }}
+              className={`glass-card rounded-xl p-3 md:p-4 relative group hover-elevate transition-all duration-300 ${
+                isBestValue ? 'ring-2 ring-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.15)]' : ''
               }`}
             >
               {isBestValue && (
-                <div className="absolute -top-3 left-6 bg-blue-500 text-white text-[10px] font-bold py-1 px-3 rounded-full shadow-lg z-20">
+                <div className="absolute -top-2 left-4 bg-blue-500 text-white text-[9px] font-bold py-0.5 px-2 rounded-full shadow-lg z-20">
                   BEST VALUE
                 </div>
               )}
               
-              <div className="flex-1 text-center md:text-left">
-                <div className="text-sm text-blue-300 mb-1">
-                  {rate.lender} • {lead.loanType.toUpperCase()}
-                  {rate.note && <span className="ml-2 px-2 py-0.5 rounded-md bg-white/5 text-[10px] text-blue-200/60 font-medium">{rate.note}</span>}
-                </div>
-                <div className="flex items-baseline justify-center md:justify-start gap-2">
-                  <span className="text-4xl font-bold text-white">{rate.rate.toFixed(3)}%</span>
-                  <span className="text-sm text-blue-200/60">Rate</span>
-                </div>
-                <div className="text-xs text-blue-200/50 mt-1 flex items-center justify-center md:justify-start gap-1">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="border-b border-dotted border-blue-200/20 cursor-help hover:text-blue-200 transition-colors">
-                          APR {rate.apr.toFixed(3)}%
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent className="bg-[#050818] border-blue-500/30 text-white p-3 space-y-2">
-                        <div className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2 border-b border-white/10 pb-1">Detailed APR Analysis</div>
-                        <div className="space-y-1.5 text-xs">
-                          <div className="flex justify-between gap-4">
-                            <span className="text-blue-200/60 font-medium">Interest Rate (Note Rate):</span>
-                            <span className="text-white font-bold">{rate.rate.toFixed(3)}%</span>
-                          </div>
-                          <div className="flex justify-between gap-4 pt-1">
-                            <span className="text-blue-200/40 italic">Adjustments from fees:</span>
-                          </div>
-                          <div className="pl-2 space-y-1">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-blue-300 font-medium">{rate.lender}</span>
+                    {rate.note && (
+                      <span className="px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-blue-200/60 font-medium">{rate.note}</span>
+                    )}
+                    {rate.lenderFee && (
+                      <span className="text-[9px] text-red-400">+${rate.lenderFee.toLocaleString()}</span>
+                    )}
+                    {rate.lenderCredit && (
+                      <span className="text-[9px] text-green-400">-${rate.lenderCredit.toLocaleString()}</span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className="text-2xl md:text-3xl font-bold text-white">{rate.rate.toFixed(3)}%</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-[10px] text-blue-200/50 border-b border-dotted border-blue-200/20 cursor-help">
+                            APR {rate.apr.toFixed(3)}%
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-[#050818] border-blue-500/30 text-white p-3 space-y-2 max-w-xs">
+                          <div className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2 border-b border-white/10 pb-1">APR Breakdown</div>
+                          <div className="space-y-1 text-xs">
+                            <div className="flex justify-between gap-4">
+                              <span className="text-blue-200/60">Interest Rate:</span>
+                              <span className="text-white font-bold">{rate.rate.toFixed(3)}%</span>
+                            </div>
                             <div className="flex justify-between gap-4">
                               <span className="text-blue-200/60">Standard Costs:</span>
                               <span className="text-blue-200">+0.150%</span>
                             </div>
                             {rate.lenderFee && (
                               <div className="flex justify-between gap-4">
-                                <span className="text-red-300">Buydown Cost (${rate.lenderFee.toLocaleString()}):</span>
+                                <span className="text-red-300">Buydown:</span>
                                 <span className="text-red-300">+{((rate.lenderFee / (lead.loanAmount || 1) / 30) * 100).toFixed(3)}%</span>
                               </div>
                             )}
                             {rate.lenderCredit && (
                               <div className="flex justify-between gap-4">
-                                <span className="text-green-300">Lender Credit (${rate.lenderCredit.toLocaleString()}):</span>
+                                <span className="text-green-300">Credit:</span>
                                 <span className="text-green-300">-{((rate.lenderCredit / (lead.loanAmount || 1) / 30) * 100).toFixed(3)}%</span>
                               </div>
                             )}
+                            <div className="flex justify-between gap-4 pt-1 border-t border-white/10 font-bold">
+                              <span className="text-[#5cffb5]">Total APR:</span>
+                              <span className="text-[#5cffb5]">{rate.apr.toFixed(3)}%</span>
+                            </div>
                           </div>
-                          <div className="flex justify-between gap-4 pt-2 border-t border-white/10 font-bold">
-                            <span className="text-[#5cffb5]">Total Effective APR:</span>
-                            <span className="text-[#5cffb5]">{rate.apr.toFixed(3)}%</span>
-                          </div>
-                        </div>
-                        <div className="text-[10px] text-blue-200/40 pt-2 italic leading-tight">
-                          APR (Annual Percentage Rate) represents the total annual cost of the loan including interest and all prepaid finance charges.
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <span>• {lead.loanTerm.replace('yr', ' Year Fixed')}</span>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
-              </div>
 
-              <div className="h-px w-full md:w-px md:h-16 bg-gradient-to-r md:bg-gradient-to-b from-transparent via-white/10 to-transparent" />
-
-              <div className="text-center md:text-left min-w-[140px]">
-                <div className="text-sm text-blue-300 mb-1">Monthly Payment</div>
-                <div className="text-2xl font-bold text-white">
-                  ${rate.monthlyPayment.toLocaleString()}
+                <div className="text-right flex-shrink-0">
+                  <div className="text-[10px] text-blue-200/50 uppercase tracking-wide">Monthly</div>
+                  <div className="text-lg md:text-xl font-bold text-white">
+                    ${rate.monthlyPayment.toLocaleString()}
+                  </div>
                 </div>
-                <div className="text-xs text-blue-200/50 mt-1">Principal & Interest</div>
-              </div>
 
-              <div className="w-full md:w-auto">
                 <GlassButton 
-                  className="w-full md:w-auto group-hover:scale-105 transition-transform" 
+                  className="flex-shrink-0" 
                   variant={isBestValue ? "primary" : "secondary"}
                   onClick={() => setSelectedRate(rate)}
                   data-testid={`button-select-rate-${index}`}
                 >
-                  Select <ArrowRight className="w-4 h-4 ml-2" />
+                  <span className="hidden sm:inline">Select</span>
+                  <ArrowRight className="w-4 h-4 sm:ml-1" />
                 </GlassButton>
               </div>
             </motion.div>

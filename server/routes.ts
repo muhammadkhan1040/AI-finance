@@ -173,10 +173,40 @@ export async function registerRoutes(
   app.post(api.leads.create.path, async (req, res) => {
     try {
       const input = api.leads.create.input.parse(req.body);
-      const lead = await storage.createLead(input);
       const rates = getMockRates(input.creditScore, input.loanAmount, input.loanTerm);
       
-      res.status(201).json({ lead, rates });
+      // Create lead with quoted rates stored as JSON (with actual lender info for admin)
+      const leadWithRates = {
+        ...input,
+        quotedRates: JSON.stringify(rates.map((r, i) => ({
+          optionNumber: i + 1,
+          actualLender: r.lender,
+          rate: r.rate,
+          apr: r.apr,
+          monthlyPayment: r.monthlyPayment,
+          lenderFee: r.lenderFee,
+          lenderCredit: r.lenderCredit,
+          note: r.note
+        })))
+      };
+      const lead = await storage.createLeadWithRates(leadWithRates);
+      
+      // Return rates with masked lender names and notes for customer display
+      const maskedRates = rates.map((r, i) => ({
+        ...r,
+        lender: `Option Lender ${i + 1}`,
+        note: r.lenderFee ? `${(r.lenderFee / input.loanAmount * 100).toFixed(1)}% Points` :
+              r.lenderCredit ? `${(r.lenderCredit / input.loanAmount * 100).toFixed(1)}% Credit` :
+              "No Points"
+      }));
+      
+      // Don't return quotedRates to customer - strip from lead response
+      const safeLeadResponse = {
+        ...lead,
+        quotedRates: undefined
+      };
+      
+      res.status(201).json({ lead: safeLeadResponse, rates: maskedRates });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({

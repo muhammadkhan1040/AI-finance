@@ -178,38 +178,67 @@ export default function Admin() {
                       <TableHead className="text-blue-200/60">Income</TableHead>
                       <TableHead className="text-blue-200/60">Zip Code</TableHead>
                       <TableHead className="text-blue-200/60">First Time Buyer</TableHead>
+                      <TableHead className="text-blue-200/60">Quoted Rates</TableHead>
                       <TableHead className="text-blue-200/60">Submitted</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {leads.map((lead) => (
-                      <TableRow key={lead.id} className="border-white/10 hover:bg-white/5">
-                        <TableCell className="text-white font-medium whitespace-nowrap">
-                          {lead.firstName} {lead.lastName}
-                        </TableCell>
-                        <TableCell className="text-blue-200/80">{lead.email}</TableCell>
-                        <TableCell className="text-blue-200/80 whitespace-nowrap">{lead.phone}</TableCell>
-                        <TableCell className="capitalize text-blue-200/80">{lead.loanPurpose}</TableCell>
-                        <TableCell className="text-white whitespace-nowrap">${lead.loanAmount.toLocaleString()}</TableCell>
-                        <TableCell className="text-white whitespace-nowrap">${lead.propertyValue.toLocaleString()}</TableCell>
-                        <TableCell className="text-blue-200/80 capitalize whitespace-nowrap">{lead.propertyType.replace(/_/g, ' ')}</TableCell>
-                        <TableCell className="text-blue-200/80 capitalize">{lead.loanType}</TableCell>
-                        <TableCell className="text-blue-200/80">{lead.loanTerm}</TableCell>
-                        <TableCell className="text-blue-200/80 whitespace-nowrap">{creditScoreRanges[lead.creditScore] || lead.creditScore}</TableCell>
-                        <TableCell className="text-white whitespace-nowrap">${lead.annualIncome.toLocaleString()}</TableCell>
-                        <TableCell className="text-blue-200/80">{lead.zipCode}</TableCell>
-                        <TableCell className="text-blue-200/80 capitalize">{lead.isFirstTimeBuyer === 'yes' ? 'Yes' : 'No'}</TableCell>
-                        <TableCell className="text-blue-200/60 text-sm whitespace-nowrap">
-                          {lead.createdAt ? (() => {
-                            try {
-                              return format(new Date(lead.createdAt), "MMM d, h:mm a");
-                            } catch {
-                              return "N/A";
-                            }
-                          })() : "N/A"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {leads.map((lead) => {
+                      let quotedRates: Array<{optionNumber: number; actualLender: string; rate: number; apr: number; lenderFee?: number; lenderCredit?: number; note?: string}> = [];
+                      try {
+                        if (lead.quotedRates) {
+                          quotedRates = JSON.parse(lead.quotedRates);
+                        }
+                      } catch {}
+                      
+                      return (
+                        <TableRow key={lead.id} className="border-white/10 hover:bg-white/5">
+                          <TableCell className="text-white font-medium whitespace-nowrap">
+                            {lead.firstName} {lead.lastName}
+                          </TableCell>
+                          <TableCell className="text-blue-200/80">{lead.email}</TableCell>
+                          <TableCell className="text-blue-200/80 whitespace-nowrap">{lead.phone}</TableCell>
+                          <TableCell className="capitalize text-blue-200/80">{lead.loanPurpose}</TableCell>
+                          <TableCell className="text-white whitespace-nowrap">${lead.loanAmount.toLocaleString()}</TableCell>
+                          <TableCell className="text-white whitespace-nowrap">${lead.propertyValue.toLocaleString()}</TableCell>
+                          <TableCell className="text-blue-200/80 capitalize whitespace-nowrap">{lead.propertyType.replace(/_/g, ' ')}</TableCell>
+                          <TableCell className="text-blue-200/80 capitalize">{lead.loanType}</TableCell>
+                          <TableCell className="text-blue-200/80">{lead.loanTerm}</TableCell>
+                          <TableCell className="text-blue-200/80 whitespace-nowrap">{creditScoreRanges[lead.creditScore] || lead.creditScore}</TableCell>
+                          <TableCell className="text-white whitespace-nowrap">${lead.annualIncome.toLocaleString()}</TableCell>
+                          <TableCell className="text-blue-200/80">{lead.zipCode}</TableCell>
+                          <TableCell className="text-blue-200/80 capitalize">{lead.isFirstTimeBuyer === 'yes' ? 'Yes' : 'No'}</TableCell>
+                          <TableCell className="text-blue-200/80">
+                            {quotedRates.length > 0 ? (
+                              <div className="space-y-1 text-xs max-w-xs">
+                                {quotedRates.slice(0, 3).map((r, i) => (
+                                  <div key={i} className="flex items-center gap-2 whitespace-nowrap">
+                                    <span className="text-white font-medium">{r.actualLender}:</span>
+                                    <span className="text-[#5cffb5]">{r.rate.toFixed(3)}%</span>
+                                    {r.lenderFee && <span className="text-red-400 text-[10px]">+${r.lenderFee.toLocaleString()}</span>}
+                                    {r.lenderCredit && <span className="text-green-400 text-[10px]">-${r.lenderCredit.toLocaleString()}</span>}
+                                  </div>
+                                ))}
+                                {quotedRates.length > 3 && (
+                                  <span className="text-blue-200/40 text-[10px]">+{quotedRates.length - 3} more</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-blue-200/40 text-[10px]">No rates</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-blue-200/60 text-sm whitespace-nowrap">
+                            {lead.createdAt ? (() => {
+                              try {
+                                return format(new Date(lead.createdAt), "MMM d, h:mm a");
+                              } catch {
+                                return "N/A";
+                              }
+                            })() : "N/A"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

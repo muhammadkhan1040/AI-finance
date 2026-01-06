@@ -18,12 +18,14 @@ export const leads = pgTable("leads", {
   loanType: text("loan_type").notNull().default("conventional"),
   annualIncome: integer("annual_income").notNull().default(0),
   isFirstTimeBuyer: text("is_first_time_buyer").notNull().default("no"),
+  quotedRates: text("quoted_rates"), // JSON string of rates shown to lead
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertLeadSchema = createInsertSchema(leads).omit({ 
   id: true, 
-  createdAt: true 
+  createdAt: true,
+  quotedRates: true
 }).extend({
   email: z.string().email("Please enter a valid email address"),
   phone: z.string().min(10, "Please enter a valid 10-digit phone number"),
@@ -33,6 +35,12 @@ export const insertLeadSchema = createInsertSchema(leads).omit({
   lastName: z.string().min(1, "Last name is required"),
   zipCode: z.string().min(5, "Valid zip code is required"),
 });
+
+export const insertLeadWithRatesSchema = insertLeadSchema.extend({
+  quotedRates: z.string().optional(),
+});
+
+export type InsertLeadWithRates = z.infer<typeof insertLeadWithRatesSchema>;
 
 export type Lead = typeof leads.$inferSelect;
 export type InsertLead = z.infer<typeof insertLeadSchema>;
