@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { type Lead } from "@shared/schema";
-import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw, LogOut, TrendingUp, TrendingDown, Calendar } from "lucide-react";
+import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw, LogOut, TrendingUp, TrendingDown, Calendar, Sheet, Loader2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +61,27 @@ export default function Admin() {
     refetchStats();
   };
 
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleSyncToSheets = async () => {
+    setIsSyncing(true);
+    setSyncMessage(null);
+    try {
+      const response = await apiRequest("POST", "/api/admin/sync-sheets", {});
+      const result = await response.json();
+      if (result.success) {
+        setSyncMessage({ type: 'success', text: result.message });
+      } else {
+        setSyncMessage({ type: 'error', text: result.message });
+      }
+    } catch (err: any) {
+      setSyncMessage({ type: 'error', text: err.message || 'Sync failed' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await apiRequest("POST", "/api/admin/logout", {});
@@ -94,6 +115,15 @@ export default function Admin() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Button 
+              onClick={handleSyncToSheets} 
+              variant="outline" 
+              disabled={isSyncing}
+              data-testid="button-sync-sheets"
+            >
+              {isSyncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sheet className="w-4 h-4 mr-2" />}
+              Sync to Sheets
+            </Button>
             <Button onClick={handleRefresh} variant="outline" data-testid="button-refresh-leads">
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
@@ -104,6 +134,12 @@ export default function Admin() {
             </Button>
           </div>
         </div>
+
+        {syncMessage && (
+          <div className={`p-4 rounded-lg ${syncMessage.type === 'success' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`} data-testid="text-sync-message">
+            {syncMessage.text}
+          </div>
+        )}
 
         <div className="grid md:grid-cols-3 gap-6">
           <Card className="bg-white/5 border-white/10">

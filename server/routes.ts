@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { type Rate } from "@shared/schema";
+import { syncLeadsToSheet, appendLeadToSheet } from "./googleSheets";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -159,6 +160,23 @@ export async function registerRoutes(
       }
     ];
   }
+
+  // Sync leads to Google Sheets (protected)
+  app.post("/api/admin/sync-sheets", requireAdmin, async (req, res) => {
+    try {
+      const allLeads = await storage.getLeads();
+      const result = await syncLeadsToSheet(allLeads);
+      
+      if (result.success) {
+        res.json(result);
+      } else {
+        res.status(500).json(result);
+      }
+    } catch (err) {
+      console.error("Error syncing to Google Sheets:", err);
+      res.status(500).json({ success: false, message: "Failed to sync to Google Sheets" });
+    }
+  });
 
   // Get lead statistics (protected)
   app.get("/api/admin/lead-stats", requireAdmin, async (req, res) => {
