@@ -93,7 +93,7 @@ const popularCalculators = [
       "Tax and insurance estimates",
       "PMI calculation when applicable"
     ],
-    href: "/mortgage-calculator",
+    href: "https://atozhomeloans.com/mortgage-calculator",
     icon: <DollarSign className="w-5 h-5" />
   },
   {
@@ -104,7 +104,7 @@ const popularCalculators = [
       "Down payment impact assessment",
       "Regional cost adjustments"
     ],
-    href: "/affordability-calculator",
+    href: "https://atozhomeloans.com/affordability-calculator",
     icon: <Building className="w-5 h-5" />
   },
   {
@@ -115,7 +115,7 @@ const popularCalculators = [
       "Estimate monthly savings",
       "Factor in closing costs"
     ],
-    href: "/refinance-calculator",
+    href: "https://atozhomeloans.com/refinance-calculator",
     icon: <ArrowRightLeft className="w-5 h-5" />
   }
 ];
@@ -128,7 +128,7 @@ const allCalculators = [
       "Total buydown fee calculation",
       "Third-party vs. borrower split"
     ],
-    href: "/buydown-calculator",
+    href: "https://atozhomeloans.com/buydown-calculator",
     icon: <TrendingDown className="w-5 h-5" />
   },
   {
@@ -138,7 +138,7 @@ const allCalculators = [
       "Tax bracket considerations",
       "SALT limitation impact"
     ],
-    href: "/tax-calculator",
+    href: "https://atozhomeloans.com/tax-calculator",
     icon: <Percent className="w-5 h-5" />
   },
   {
@@ -148,7 +148,7 @@ const allCalculators = [
       "Principal vs interest breakdown",
       "Remaining balance tracking"
     ],
-    href: "/amortization-calculator",
+    href: "https://atozhomeloans.com/amortization-calculator",
     icon: <Calendar className="w-5 h-5" />
   },
   {
@@ -158,7 +158,7 @@ const allCalculators = [
       "Back-end ratio analysis",
       "Improvement recommendations"
     ],
-    href: "/dti-calculator",
+    href: "https://atozhomeloans.com/dti-calculator",
     icon: <Scale className="w-5 h-5" />
   },
   {
@@ -168,7 +168,7 @@ const allCalculators = [
       "Payment shock calculation",
       "Equity building comparison"
     ],
-    href: "/interest-only-calculator",
+    href: "https://atozhomeloans.com/interest-only-calculator",
     icon: <Clock className="w-5 h-5" />
   },
   {
@@ -178,7 +178,7 @@ const allCalculators = [
       "Time reduction analysis",
       "Various payment strategies"
     ],
-    href: "/additional-payment-calculator",
+    href: "https://atozhomeloans.com/additional-payment-calculator",
     icon: <PiggyBank className="w-5 h-5" />
   },
   {
@@ -188,7 +188,7 @@ const allCalculators = [
       "Payment impact comparison",
       "Opportunity cost evaluation"
     ],
-    href: "/down-payment-calculator",
+    href: "https://atozhomeloans.com/down-payment-calculator",
     icon: <Wallet className="w-5 h-5" />
   },
   {
@@ -198,7 +198,7 @@ const allCalculators = [
       "Interest savings calculation",
       "Payment schedule comparison"
     ],
-    href: "/biweekly-calculator",
+    href: "https://atozhomeloans.com/biweekly-calculator",
     icon: <Calendar className="w-5 h-5" />
   },
   {
@@ -208,7 +208,7 @@ const allCalculators = [
       "Extra payment impact analysis",
       "Annual payment increase option"
     ],
-    href: "/prepayment-calculator",
+    href: "https://atozhomeloans.com/prepayment-calculator",
     icon: <Target className="w-5 h-5" />
   },
   {
@@ -218,7 +218,7 @@ const allCalculators = [
       "Equity position analysis",
       "Refinancing eligibility"
     ],
-    href: "/ltv-calculator",
+    href: "https://atozhomeloans.com/ltv-calculator",
     icon: <BarChart3 className="w-5 h-5" />
   },
   {
@@ -228,7 +228,7 @@ const allCalculators = [
       "Payment caps analysis",
       "Worst-case scenario planning"
     ],
-    href: "/arm-calculator",
+    href: "https://atozhomeloans.com/arm-calculator",
     icon: <TrendingDown className="w-5 h-5" />
   },
   {
@@ -238,7 +238,7 @@ const allCalculators = [
       "Calculate balloon payment amount",
       "Plan for refinancing or payoff"
     ],
-    href: "/balloon-calculator",
+    href: "https://atozhomeloans.com/balloon-calculator",
     icon: <CreditCard className="w-5 h-5" />
   },
   {
@@ -248,7 +248,7 @@ const allCalculators = [
       "Weighted average calculation",
       "Visual balance distribution"
     ],
-    href: "/blended-calculator",
+    href: "https://atozhomeloans.com/blended-calculator",
     icon: <BarChart3 className="w-5 h-5" />
   }
 ];
