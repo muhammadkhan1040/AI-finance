@@ -3,13 +3,14 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Lock, AlertCircle, Info } from "lucide-react";
+import { Lock, AlertCircle, Info, Eye, EyeOff } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -64,15 +65,27 @@ export default function AdminLogin() {
             
             <div className="space-y-2">
               <label className="text-sm text-blue-200/60">Password</label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                className="bg-white/5 border-white/10 text-white placeholder:text-blue-200/30"
-                data-testid="input-admin-password"
-                required
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  className="bg-white/5 border-white/10 text-white placeholder:text-blue-200/30 pr-10"
+                  data-testid="input-admin-password"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 text-blue-200/60 hover:text-white"
+                  onClick={() => setShowPassword(!showPassword)}
+                  data-testid="button-toggle-password"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
             </div>
             
             <Button 
