@@ -2,6 +2,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { type Rate, type Lead } from "@shared/schema";
 import { Check, ArrowRight, DollarSign, Calculator, Info, ChevronDown, ChevronUp, Search, ShieldCheck, User, Star } from "lucide-react";
 import brokerPhoto from "@assets/profile_picture_1767718796633.JPEG";
+import atozLogo from "@assets/offical_logo_color_correct_normal_backgoorund_1767722280788.png";
+import equalHousingLogo from "@assets/stock_images/equal_housing_opport_c2b4382a.jpg";
 import { GlassButton } from "./ui/glass-button";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +23,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+
+const GOOGLE_REVIEWS_URL = "https://www.google.com/search?q=a+to+z+home+loans#lrd=0x872b735c4e416fcf:0xed69e4c2f4ef7bdb,1";
 
 const creditScoreLabels: Record<string, string> = {
   "780+": "780+",
@@ -493,14 +497,21 @@ function StickyBrokerBar() {
             <div className="min-w-0">
               <div className="text-white font-bold text-sm">Jerald Acosta</div>
               <div className="text-white/80 text-xs">A to Z Home Loans</div>
-              <div className="flex items-center gap-2">
+              <div className="text-[10px] text-blue-200/50">NMLS #1388911</div>
+              <a 
+                href={GOOGLE_REVIEWS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                data-testid="link-google-reviews"
+              >
                 <div className="flex text-yellow-400">
                   {[...Array(5)].map((_, i) => (
                     <Star key={i} className="w-3 h-3 fill-current" />
                   ))}
                 </div>
-                <span className="text-[10px] text-blue-200/50">NMLS #1388911</span>
-              </div>
+                <span className="text-[10px] text-blue-200/70 underline">{GOOGLE_REVIEW_COUNT} Google Reviews</span>
+              </a>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -525,6 +536,33 @@ function StickyBrokerBar() {
             </Button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function DisclaimerSection() {
+  return (
+    <div className="mt-8 mb-40 space-y-6">
+      <div className="text-[10px] text-blue-200/40 leading-relaxed space-y-2 px-4">
+        <p><sup>1</sup> Points are fees paid directly to the lender in exchange for a reduced interest rate. A point is equal to one percent of the borrowed funds. By paying more in points upfront, you save money on interest over the life of your loan.</p>
+        <p><sup>2</sup> Loan origination fee is for the service of processing a new loan application.</p>
+        <p><sup>3</sup> Underwriting fee for the service of evaluating a loan application.</p>
+        <p><sup>4</sup> Processing fee to cover the cost of processing a mortgage application.</p>
+        <p className="pt-2 border-t border-white/5">All values are estimates based on information provided by the lender. Taxes and insurance are NOT included. Additional fees may apply. For an exact quote, contact the lender.</p>
+      </div>
+      
+      <div className="flex items-center justify-center gap-6 pt-4">
+        <img 
+          src={atozLogo} 
+          alt="A to Z Home Loans" 
+          className="h-12 object-contain"
+        />
+        <img 
+          src={equalHousingLogo} 
+          alt="Equal Housing Opportunity" 
+          className="h-10 object-contain"
+        />
       </div>
     </div>
   );
@@ -706,7 +744,7 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
 
       <TrustIndicators />
 
-      <div className="text-center mt-6 pb-36">
+      <div className="text-center mt-6">
         <button 
           onClick={onReset}
           className="text-blue-300 hover:text-white underline underline-offset-4 text-sm transition-colors"
@@ -714,6 +752,8 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
           Start a new search
         </button>
       </div>
+
+      <DisclaimerSection />
 
       <StickyBrokerBar />
     </div>
