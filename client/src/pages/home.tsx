@@ -12,9 +12,7 @@ function NavigationBar() {
       <div className="max-w-6xl mx-auto px-4 py-3">
         <div className="flex items-center justify-center gap-6 md:gap-10">
           <a 
-            href="https://atozhomeloans.com" 
-            target="_blank" 
-            rel="noopener noreferrer"
+            href="/"
             className="flex items-center gap-2 text-white/80 hover:text-[#5cffb5] transition-colors text-sm font-medium"
             data-testid="nav-home"
           >
@@ -22,9 +20,7 @@ function NavigationBar() {
             <span>Home</span>
           </a>
           <a 
-            href="https://atozhomeloans.com/calculators" 
-            target="_blank" 
-            rel="noopener noreferrer"
+            href="/calculators"
             className="flex items-center gap-2 text-white/80 hover:text-[#5cffb5] transition-colors text-sm font-medium"
             data-testid="nav-calculator"
           >
