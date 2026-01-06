@@ -200,10 +200,17 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="pt-8 text-center">
+          <div className="pt-8 text-center space-y-2">
             <p className="text-blue-200/20 text-[10px] uppercase tracking-[0.2em]">
               Precision Crafted for A to Z Home Loans
             </p>
+            <a 
+              href="/admin" 
+              className="text-blue-200/20 text-[10px] hover:text-blue-200/40 transition-colors"
+              data-testid="link-admin"
+            >
+              Admin
+            </a>
           </div>
         </div>
       </footer>

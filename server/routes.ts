@@ -160,6 +160,56 @@ export async function registerRoutes(
     ];
   }
 
+  // Get lead statistics (protected)
+  app.get("/api/admin/lead-stats", requireAdmin, async (req, res) => {
+    try {
+      const allLeads = await storage.getLeads();
+      const now = new Date();
+      
+      // Calculate start of current week (Sunday)
+      const currentWeekStart = new Date(now);
+      currentWeekStart.setHours(0, 0, 0, 0);
+      currentWeekStart.setDate(now.getDate() - now.getDay());
+      
+      // Calculate start of previous week
+      const previousWeekStart = new Date(currentWeekStart);
+      previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+      
+      // Count leads for each week
+      let thisWeekCount = 0;
+      let lastWeekCount = 0;
+      
+      for (const lead of allLeads) {
+        if (lead.createdAt) {
+          const createdDate = new Date(lead.createdAt);
+          if (createdDate >= currentWeekStart) {
+            thisWeekCount++;
+          } else if (createdDate >= previousWeekStart && createdDate < currentWeekStart) {
+            lastWeekCount++;
+          }
+        }
+      }
+      
+      // Calculate percentage change
+      let percentChange = 0;
+      if (lastWeekCount > 0) {
+        percentChange = Math.round(((thisWeekCount - lastWeekCount) / lastWeekCount) * 100);
+      } else if (thisWeekCount > 0) {
+        percentChange = 100; // All new this week
+      }
+      
+      res.json({
+        totalLeads: allLeads.length,
+        thisWeek: thisWeekCount,
+        lastWeek: lastWeekCount,
+        percentChange
+      });
+    } catch (err) {
+      console.error("Error fetching lead stats:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Get all leads (protected)
   app.get(api.leads.list.path, requireAdmin, async (req, res) => {
     try {

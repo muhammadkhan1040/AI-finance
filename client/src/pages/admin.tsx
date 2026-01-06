@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { type Lead } from "@shared/schema";
-import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw, LogOut } from "lucide-react";
+import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw, LogOut, TrendingUp, TrendingDown, Calendar } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +46,21 @@ export default function Admin() {
     enabled: !isCheckingAuth,
   });
 
+  const { data: leadStats, refetch: refetchStats } = useQuery<{
+    totalLeads: number;
+    thisWeek: number;
+    lastWeek: number;
+    percentChange: number;
+  }>({
+    queryKey: ["/api/admin/lead-stats"],
+    enabled: !isCheckingAuth,
+  });
+
+  const handleRefresh = () => {
+    refetch();
+    refetchStats();
+  };
+
   const handleLogout = async () => {
     try {
       await apiRequest("POST", "/api/admin/logout", {});
@@ -79,7 +94,7 @@ export default function Admin() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button onClick={() => refetch()} variant="outline" data-testid="button-refresh-leads">
+            <Button onClick={handleRefresh} variant="outline" data-testid="button-refresh-leads">
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
             </Button>
@@ -90,7 +105,7 @@ export default function Admin() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           <Card className="bg-white/5 border-white/10">
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -104,7 +119,33 @@ export default function Admin() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-white">{leads?.length || 0}</div>
+              <div className="text-4xl font-bold text-white" data-testid="text-total-leads">{leadStats?.totalLeads ?? leads?.length ?? 0}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/5 border-white/10">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-purple-500/20">
+                  <Calendar className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-white">New This Week</CardTitle>
+                  <CardDescription className="text-blue-200/60">Leads since Sunday</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-end gap-3">
+                <div className="text-4xl font-bold text-white" data-testid="text-this-week-leads">{leadStats?.thisWeek ?? 0}</div>
+                {leadStats && (
+                  <div className={`flex items-center gap-1 text-sm pb-1 ${leadStats.percentChange >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-percent-change">
+                    {leadStats.percentChange >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                    <span>{leadStats.percentChange >= 0 ? '+' : ''}{leadStats.percentChange}%</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-blue-200/40 mt-2">vs last week ({leadStats?.lastWeek ?? 0} leads)</p>
             </CardContent>
           </Card>
 
