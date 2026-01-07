@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { type Rate } from "@shared/schema";
 import { syncLeadsToSheet, appendLeadToSheet } from "./googleSheets";
+import { calculateRates, generateMockQuotes, type LoanParameters, type LenderQuote } from "./pricingEngine";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -261,6 +262,31 @@ export async function registerRoutes(
     }
   });
 
+  // Get rate sheet parsing status (protected)
+  app.get("/api/admin/rate-sheet-status", requireAdmin, async (req, res) => {
+    try {
+      const activeSheets = await storage.getActiveRateSheets();
+      const { parseRateSheet } = await import('./rateSheetParser');
+      
+      const statuses = await Promise.all(activeSheets.map(async (sheet) => {
+        const parsed = await parseRateSheet(sheet.fileData, sheet.fileName, sheet.lenderName);
+        return {
+          id: sheet.id,
+          lenderName: sheet.lenderName,
+          fileName: sheet.fileName,
+          parseSuccess: parsed.parseSuccess,
+          rateCount: parsed.rates.length,
+          parseError: parsed.parseError,
+        };
+      }));
+      
+      res.json(statuses);
+    } catch (err) {
+      console.error("Error checking rate sheet status:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Get lead statistics (protected)
   app.get("/api/admin/lead-stats", requireAdmin, async (req, res) => {
     try {
@@ -324,7 +350,91 @@ export async function registerRoutes(
   app.post(api.leads.create.path, async (req, res) => {
     try {
       const input = api.leads.create.input.parse(req.body);
-      const rates = getMockRates(input.creditScore, input.loanAmount, input.loanTerm);
+      
+      // Map credit score to pricing engine format
+      const creditScoreMap: Record<string, string> = {
+        "780+": "excellent",
+        "760-780": "excellent",
+        "740-759": "good",
+        "720-739": "good",
+        "700-719": "good",
+        "680-699": "fair",
+        "640-679": "fair",
+        "620-639": "poor",
+        "601-619": "poor",
+        "580-600": "poor",
+        "excellent": "excellent",
+        "good": "good",
+        "fair": "fair",
+        "poor": "poor",
+      };
+      
+      const loanParams: LoanParameters = {
+        loanAmount: input.loanAmount,
+        propertyValue: input.propertyValue,
+        loanTerm: input.loanTerm || "30yr",
+        loanType: input.loanType || "conventional",
+        propertyType: input.propertyType || "single_family",
+        creditScore: creditScoreMap[input.creditScore] || "good",
+        loanPurpose: input.loanPurpose,
+      };
+      
+      // Try to calculate rates from uploaded rate sheets first
+      const pricingResult = await calculateRates(loanParams);
+      
+      let rates: Rate[];
+      let lenderQuotes: LenderQuote[];
+      
+      if (pricingResult.quotes.length > 0 && pricingResult.validationPassed) {
+        // Use rates from uploaded rate sheets
+        lenderQuotes = pricingResult.quotes;
+        rates = [];
+        
+        // Convert lender quotes to Rate format
+        for (const quote of lenderQuotes) {
+          for (const scenario of quote.scenarios) {
+            rates.push({
+              lender: quote.lenderName,
+              rate: scenario.rate,
+              apr: scenario.apr,
+              monthlyPayment: scenario.monthlyPayment,
+              processingFee: 895,
+              underwritingFee: 1245,
+              lenderFee: scenario.isCredit ? undefined : scenario.pointsDollar > 0 ? Math.round(scenario.pointsDollar) : undefined,
+              lenderCredit: scenario.isCredit ? Math.round(scenario.pointsDollar) : undefined,
+              note: scenario.scenarioLabel,
+            });
+          }
+        }
+        
+        // Log parse errors for admin notification
+        if (pricingResult.parseErrors.length > 0) {
+          console.warn("Rate sheet parse errors:", pricingResult.parseErrors);
+        }
+      } else {
+        // Fallback to mock rates if no rate sheets available
+        lenderQuotes = generateMockQuotes(loanParams);
+        rates = [];
+        
+        for (const quote of lenderQuotes) {
+          for (const scenario of quote.scenarios) {
+            rates.push({
+              lender: quote.lenderName,
+              rate: scenario.rate,
+              apr: scenario.apr,
+              monthlyPayment: scenario.monthlyPayment,
+              processingFee: 895,
+              underwritingFee: 1245,
+              lenderFee: scenario.isCredit ? undefined : scenario.pointsDollar > 0 ? Math.round(scenario.pointsDollar) : undefined,
+              lenderCredit: scenario.isCredit ? Math.round(scenario.pointsDollar) : undefined,
+              note: scenario.scenarioLabel,
+            });
+          }
+        }
+      }
+      
+      // Sort by rate (lowest first)
+      rates.sort((a, b) => a.rate - b.rate);
       
       // Create lead with quoted rates stored as JSON (with actual lender info for admin)
       const leadWithRates = {
@@ -342,13 +452,13 @@ export async function registerRoutes(
       };
       const lead = await storage.createLeadWithRates(leadWithRates);
       
-      // Return rates with masked lender names and notes for customer display
+      // Return rates with masked lender names for customer display
       const maskedRates = rates.map((r, i) => ({
         ...r,
-        lender: `Option Lender ${i + 1}`,
-        note: r.lenderFee ? `${(r.lenderFee / input.loanAmount * 100).toFixed(1)}% Points` :
+        lender: `Lender ${String.fromCharCode(65 + Math.floor(i / 4))}`, // A, B, C...
+        note: r.note || (r.lenderFee ? `${(r.lenderFee / input.loanAmount * 100).toFixed(1)}% Points` :
               r.lenderCredit ? `${(r.lenderCredit / input.loanAmount * 100).toFixed(1)}% Credit` :
-              "No Points"
+              "Par Rate")
       }));
       
       // Don't return quotedRates to customer - strip from lead response

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { type Lead } from "@shared/schema";
-import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw, LogOut, TrendingUp, TrendingDown, Calendar, Sheet, Loader2, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw, LogOut, TrendingUp, TrendingDown, Calendar, Sheet, Loader2, Trash2, ToggleLeft, ToggleRight, CheckCircle, AlertCircle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,10 +69,25 @@ export default function Admin() {
     enabled: !isCheckingAuth,
   });
 
+  interface RateSheetStatus {
+    id: number;
+    lenderName: string;
+    fileName: string;
+    parseSuccess: boolean;
+    rateCount: number;
+    parseError?: string;
+  }
+
+  const { data: rateSheetStatus, refetch: refetchStatus } = useQuery<RateSheetStatus[]>({
+    queryKey: ["/api/admin/rate-sheet-status"],
+    enabled: !isCheckingAuth && (rateSheets?.length ?? 0) > 0,
+  });
+
   const handleRefresh = () => {
     refetch();
     refetchStats();
     refetchRateSheets();
+    refetchStatus();
   };
 
   const [isUploading, setIsUploading] = useState(false);
@@ -277,36 +292,57 @@ export default function Admin() {
               <div className="space-y-4">
                 {rateSheets && rateSheets.length > 0 && (
                   <div className="space-y-2">
-                    {rateSheets.map((sheet) => (
-                      <div 
-                        key={sheet.id} 
-                        className={`flex items-center justify-between gap-2 p-3 rounded-lg ${sheet.isActive === 'yes' ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5 border border-white/10 opacity-50'}`}
-                        data-testid={`rate-sheet-${sheet.id}`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white font-medium truncate">{sheet.lenderName}</p>
-                          <p className="text-xs text-blue-200/40 truncate">{sheet.fileName}</p>
+                    {rateSheets.map((sheet) => {
+                      const status = rateSheetStatus?.find(s => s.id === sheet.id);
+                      return (
+                        <div 
+                          key={sheet.id} 
+                          className={`flex items-center justify-between gap-2 p-3 rounded-lg ${sheet.isActive === 'yes' ? 'bg-green-500/10 border border-green-500/30' : 'bg-white/5 border border-white/10 opacity-50'}`}
+                          data-testid={`rate-sheet-${sheet.id}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm text-white font-medium truncate">{sheet.lenderName}</p>
+                              {status && (
+                                status.parseSuccess ? (
+                                  <span className="flex items-center gap-1 text-[10px] text-green-400">
+                                    <CheckCircle className="w-3 h-3" />
+                                    {status.rateCount} rates
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-[10px] text-red-400" title={status.parseError}>
+                                    <AlertCircle className="w-3 h-3" />
+                                    Parse failed
+                                  </span>
+                                )
+                              )}
+                            </div>
+                            <p className="text-xs text-blue-200/40 truncate">{sheet.fileName}</p>
+                            {status && !status.parseSuccess && status.parseError && (
+                              <p className="text-[10px] text-red-400/70 truncate mt-1">{status.parseError}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              size="icon" 
+                              variant="ghost"
+                              onClick={() => handleToggleRateSheet(sheet.id, sheet.isActive)}
+                              data-testid={`button-toggle-sheet-${sheet.id}`}
+                            >
+                              {sheet.isActive === 'yes' ? <ToggleRight className="w-4 h-4 text-green-400" /> : <ToggleLeft className="w-4 h-4 text-blue-200/40" />}
+                            </Button>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              onClick={() => handleDeleteRateSheet(sheet.id)}
+                              data-testid={`button-delete-sheet-${sheet.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 text-red-400" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            size="icon" 
-                            variant="ghost"
-                            onClick={() => handleToggleRateSheet(sheet.id, sheet.isActive)}
-                            data-testid={`button-toggle-sheet-${sheet.id}`}
-                          >
-                            {sheet.isActive === 'yes' ? <ToggleRight className="w-4 h-4 text-green-400" /> : <ToggleLeft className="w-4 h-4 text-blue-200/40" />}
-                          </Button>
-                          <Button 
-                            size="icon" 
-                            variant="ghost" 
-                            onClick={() => handleDeleteRateSheet(sheet.id)}
-                            data-testid={`button-delete-sheet-${sheet.id}`}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-400" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
@@ -323,7 +359,7 @@ export default function Admin() {
                     <label className="border-2 border-dashed border-white/20 rounded-xl p-6 text-center hover:border-blue-500/50 transition-colors cursor-pointer block">
                       <input 
                         type="file" 
-                        accept=".csv,.xls,.xlsx"
+                        accept=".csv,.xls,.xlsx,.pdf"
                         onChange={handleFileUpload}
                         className="hidden"
                         disabled={isUploading}
@@ -335,13 +371,13 @@ export default function Admin() {
                         <Upload className="w-6 h-6 mx-auto mb-2 text-blue-400" />
                       )}
                       <p className="text-sm text-white font-medium">Drop rate sheet here</p>
-                      <p className="text-xs text-blue-200/40 mt-1">CSV, XLS, XLSX supported</p>
+                      <p className="text-xs text-blue-200/40 mt-1">Excel (.xlsx) recommended, PDF also supported</p>
                     </label>
                   </>
                 )}
 
                 <p className="text-xs text-blue-200/40 italic">
-                  Upload up to 5 wholesale lender rate sheets for reference. Rate parsing integration coming soon - currently using demo rates from PRMG, UWM, and Flagstar.
+                  Upload up to 5 wholesale lender rate sheets. Successfully parsed sheets will be used for live rate quotes. Sheets with parse errors will use fallback mock rates.
                 </p>
               </div>
             </CardContent>

@@ -1,6 +1,4 @@
 import * as XLSX from 'xlsx';
-// @ts-ignore - pdf-parse types issue
-import pdf from 'pdf-parse';
 
 export interface ParsedRate {
   rate: number;
@@ -128,6 +126,9 @@ export async function parsePdfRateSheet(fileData: string, lenderName: string): P
     const base64Data = fileData.replace(/^data:.*?;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
     
+    // Dynamic import for pdf-parse (CommonJS module)
+    const pdfParse = await import('pdf-parse');
+    const pdf = pdfParse.default || pdfParse;
     const pdfData = await pdf(buffer);
     const text = pdfData.text;
     
@@ -136,9 +137,6 @@ export async function parsePdfRateSheet(fileData: string, lenderName: string): P
     
     let currentLoanTerm = "30yr";
     let currentLoanType = "conventional";
-    
-    const ratePattern = /(\d+\.\d{3})\s+(\d+\.\d{3})\s+(\d+\.\d{3})?/g;
-    const singleRatePattern = /(\d\.\d{3})\s+(\d{2,3}\.\d{3})/g;
     
     for (const line of lines) {
       const detectedTerm = detectLoanTerm(line);
