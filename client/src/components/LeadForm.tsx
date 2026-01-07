@@ -23,6 +23,7 @@ const STEPS = [
 
 export function LeadForm({ onRatesReceived }: LeadFormProps) {
   const [step, setStep] = useState(0);
+  const [downPayment, setDownPayment] = useState(100000);
   const { mutate, isPending } = useCreateLead();
   
   const form = useForm<InsertLead>({
@@ -47,6 +48,32 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
 
   const { register, trigger, getValues, setValue, watch, formState: { errors } } = form;
   const loanPurpose = watch("loanPurpose");
+  const propertyValue = watch("propertyValue");
+  const loanAmount = watch("loanAmount");
+
+  const handlePropertyValueChange = (newValue: number) => {
+    setValue("propertyValue", newValue);
+    if (loanPurpose === "purchase") {
+      const newLoanAmount = Math.max(0, newValue - downPayment);
+      setValue("loanAmount", newLoanAmount);
+    }
+  };
+
+  const handleDownPaymentChange = (newDownPayment: number) => {
+    setDownPayment(newDownPayment);
+    const currentPropertyValue = getValues("propertyValue") || 0;
+    const newLoanAmount = Math.max(0, currentPropertyValue - newDownPayment);
+    setValue("loanAmount", newLoanAmount);
+  };
+
+  const handleLoanAmountChange = (newLoanAmount: number) => {
+    setValue("loanAmount", newLoanAmount);
+    if (loanPurpose === "purchase") {
+      const currentPropertyValue = getValues("propertyValue") || 0;
+      const newDownPayment = Math.max(0, currentPropertyValue - newLoanAmount);
+      setDownPayment(newDownPayment);
+    }
+  };
 
   const nextStep = async () => {
     let fieldsToValidate: (keyof InsertLead)[] = [];
@@ -226,20 +253,43 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-blue-200">Estimated Value</Label>
+                    <Label className="text-blue-200">{loanPurpose === "purchase" ? "Purchase Price" : "Estimated Value"}</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
                       <Input 
                         className="glass-input h-12 pl-10" 
                         placeholder="450,000"
-                        value={(watch("propertyValue") || 0).toLocaleString()}
+                        data-testid="input-property-value"
+                        value={(propertyValue || 0).toLocaleString()}
                         onChange={(e) => {
                           const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
-                          setValue("propertyValue", val);
+                          handlePropertyValueChange(val);
                         }}
                       />
                     </div>
                   </div>
+
+                  {loanPurpose === "purchase" && (
+                    <div className="space-y-2">
+                      <Label className="text-blue-200">Down Payment</Label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
+                        <Input 
+                          className="glass-input h-12 pl-10" 
+                          placeholder="100,000"
+                          data-testid="input-down-payment"
+                          value={downPayment.toLocaleString()}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
+                            handleDownPaymentChange(val);
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-blue-200/50">
+                        {propertyValue > 0 ? `${((downPayment / propertyValue) * 100).toFixed(1)}% down` : ''}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label className="text-blue-200">Loan Amount</Label>
@@ -248,10 +298,11 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                       <Input 
                         className="glass-input h-12 pl-10" 
                         placeholder="350,000"
-                        value={(watch("loanAmount") || 0).toLocaleString()}
+                        data-testid="input-loan-amount"
+                        value={(loanAmount || 0).toLocaleString()}
                         onChange={(e) => {
                           const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
-                          setValue("loanAmount", val);
+                          handleLoanAmountChange(val);
                         }}
                       />
                     </div>
