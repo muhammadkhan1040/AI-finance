@@ -111,13 +111,16 @@ function getTermYears(loanTerm: string): number {
 
 function normalizePrice(
   basePrice: number,
-  params: LoanParameters
+  params: LoanParameters,
+  includeLenderAdjustment: boolean = true
 ): number {
   const ltv = (params.loanAmount / params.propertyValue) * 100;
   
   let adjustedPrice = basePrice;
   
-  adjustedPrice -= LENDER_ADJUSTMENT;
+  if (includeLenderAdjustment) {
+    adjustedPrice -= LENDER_ADJUSTMENT;
+  }
   
   adjustedPrice += CREDIT_SCORE_ADJUSTMENTS[params.creditScore] || 0;
   adjustedPrice += PROPERTY_TYPE_ADJUSTMENTS[params.propertyType] || 0;
@@ -132,7 +135,7 @@ function findRateForTargetPoints(
   rates: ParsedRate[],
   params: LoanParameters,
   targetPointsFromPar: number
-): { rate: number; price: number } | null {
+): { rate: number; internalPrice: number; customerPrice: number } | null {
   const termYears = getTermYears(params.loanTerm);
   const loanTermKey = `${termYears}yr`;
   
@@ -147,23 +150,25 @@ function findRateForTargetPoints(
     filteredRates.push(...allForTerm);
   }
   
-  let bestMatch: { rate: number; price: number; diff: number } | null = null;
+  let bestMatch: { rate: number; internalPrice: number; customerPrice: number; diff: number } | null = null;
   
   for (const rateData of filteredRates) {
-    const adjustedPrice = normalizePrice(rateData.price15Day, params);
-    const pointsFromPar = 100 - adjustedPrice;
+    const internalPrice = normalizePrice(rateData.price15Day, params, true);
+    const customerPrice = normalizePrice(rateData.price15Day, params, false);
+    const pointsFromPar = 100 - internalPrice;
     const diff = Math.abs(pointsFromPar - targetPointsFromPar);
     
     if (!bestMatch || diff < bestMatch.diff) {
       bestMatch = {
         rate: rateData.rate,
-        price: adjustedPrice,
+        internalPrice,
+        customerPrice,
         diff,
       };
     }
   }
   
-  return bestMatch ? { rate: bestMatch.rate, price: bestMatch.price } : null;
+  return bestMatch ? { rate: bestMatch.rate, internalPrice: bestMatch.internalPrice, customerPrice: bestMatch.customerPrice } : null;
 }
 
 function createPricingScenario(
@@ -209,7 +214,7 @@ async function generateQuoteFromRateSheet(
   if (bestRateData) {
     scenarios.push(createPricingScenario(
       bestRateData.rate,
-      bestRateData.price,
+      bestRateData.customerPrice,
       params,
       "Best Available Rate"
     ));
@@ -219,7 +224,7 @@ async function generateQuoteFromRateSheet(
   if (onePointRate) {
     scenarios.push(createPricingScenario(
       onePointRate.rate,
-      onePointRate.price,
+      onePointRate.customerPrice,
       params,
       "Pay 1 Point (Lower Rate)"
     ));
@@ -229,7 +234,7 @@ async function generateQuoteFromRateSheet(
   if (oneHalfPointRate) {
     scenarios.push(createPricingScenario(
       oneHalfPointRate.rate,
-      oneHalfPointRate.price,
+      oneHalfPointRate.customerPrice,
       params,
       "Pay 1.5 Points (Lowest Rate)"
     ));
@@ -239,7 +244,7 @@ async function generateQuoteFromRateSheet(
   if (creditRate) {
     scenarios.push(createPricingScenario(
       creditRate.rate,
-      creditRate.price,
+      creditRate.customerPrice,
       params,
       "Receive 0.5 Point Credit"
     ));
@@ -252,8 +257,8 @@ async function generateQuoteFromRateSheet(
   return {
     lenderName: parsedSheet.lenderName,
     scenarios,
-    basePrice: bestRateData?.price || 100,
-    adjustedPrice: bestRateData?.price || 100,
+    basePrice: bestRateData?.customerPrice || 100,
+    adjustedPrice: bestRateData?.customerPrice || 100,
   };
 }
 
