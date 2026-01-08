@@ -24,6 +24,8 @@ const STEPS = [
 export function LeadForm({ onRatesReceived }: LeadFormProps) {
   const [step, setStep] = useState(0);
   const [downPayment, setDownPayment] = useState(100000);
+  const [downPaymentPercent, setDownPaymentPercent] = useState(22.22);
+  const [downPaymentMode, setDownPaymentMode] = useState<'percent' | 'dollar'>('percent');
   const { mutate, isPending } = useCreateLead();
   
   const form = useForm<InsertLead>({
@@ -54,9 +56,28 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
   const handlePropertyValueChange = (newValue: number) => {
     setValue("propertyValue", newValue);
     if (loanPurpose === "purchase") {
-      const newLoanAmount = Math.max(0, newValue - downPayment);
-      setValue("loanAmount", newLoanAmount);
+      if (downPaymentMode === 'percent') {
+        const newDownPayment = Math.round((downPaymentPercent / 100) * newValue);
+        setDownPayment(newDownPayment);
+        const newLoanAmount = Math.max(0, newValue - newDownPayment);
+        setValue("loanAmount", newLoanAmount);
+      } else {
+        const newLoanAmount = Math.max(0, newValue - downPayment);
+        setValue("loanAmount", newLoanAmount);
+        if (newValue > 0) {
+          setDownPaymentPercent(Number(((downPayment / newValue) * 100).toFixed(2)));
+        }
+      }
     }
+  };
+
+  const handleDownPaymentPercentChange = (percent: number) => {
+    setDownPaymentPercent(percent);
+    const currentPropertyValue = getValues("propertyValue") || 0;
+    const newDownPayment = Math.round((percent / 100) * currentPropertyValue);
+    setDownPayment(newDownPayment);
+    const newLoanAmount = Math.max(0, currentPropertyValue - newDownPayment);
+    setValue("loanAmount", newLoanAmount);
   };
 
   const handleDownPaymentChange = (newDownPayment: number) => {
@@ -64,6 +85,9 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
     const currentPropertyValue = getValues("propertyValue") || 0;
     const newLoanAmount = Math.max(0, currentPropertyValue - newDownPayment);
     setValue("loanAmount", newLoanAmount);
+    if (currentPropertyValue > 0) {
+      setDownPaymentPercent(Number(((newDownPayment / currentPropertyValue) * 100).toFixed(2)));
+    }
   };
 
   const handleLoanAmountChange = (newLoanAmount: number) => {
@@ -72,6 +96,9 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
       const currentPropertyValue = getValues("propertyValue") || 0;
       const newDownPayment = Math.max(0, currentPropertyValue - newLoanAmount);
       setDownPayment(newDownPayment);
+      if (currentPropertyValue > 0) {
+        setDownPaymentPercent(Number(((newDownPayment / currentPropertyValue) * 100).toFixed(2)));
+      }
     }
   };
 
@@ -271,22 +298,67 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
 
                   {loanPurpose === "purchase" && (
                     <div className="space-y-2">
-                      <Label className="text-blue-200">Down Payment</Label>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-blue-200">Down Payment</Label>
+                        <div className="flex rounded-md overflow-hidden border border-blue-500/30">
+                          <button
+                            type="button"
+                            data-testid="toggle-down-payment-percent"
+                            className={cn(
+                              "px-3 py-1 text-xs font-medium transition-colors",
+                              downPaymentMode === 'percent' 
+                                ? "bg-blue-500/30 text-white" 
+                                : "bg-transparent text-blue-300/70"
+                            )}
+                            onClick={() => setDownPaymentMode('percent')}
+                          >
+                            %
+                          </button>
+                          <button
+                            type="button"
+                            data-testid="toggle-down-payment-dollar"
+                            className={cn(
+                              "px-3 py-1 text-xs font-medium transition-colors",
+                              downPaymentMode === 'dollar' 
+                                ? "bg-blue-500/30 text-white" 
+                                : "bg-transparent text-blue-300/70"
+                            )}
+                            onClick={() => setDownPaymentMode('dollar')}
+                          >
+                            $
+                          </button>
+                        </div>
+                      </div>
                       <div className="relative">
-                        <DollarSign className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
+                        {downPaymentMode === 'dollar' ? (
+                          <DollarSign className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
+                        ) : (
+                          <Percent className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
+                        )}
                         <Input 
                           className="glass-input h-12 pl-10" 
-                          placeholder="100,000"
+                          placeholder={downPaymentMode === 'percent' ? "20" : "100,000"}
                           data-testid="input-down-payment"
-                          value={downPayment.toLocaleString()}
+                          value={downPaymentMode === 'percent' 
+                            ? downPaymentPercent 
+                            : downPayment.toLocaleString()
+                          }
                           onChange={(e) => {
-                            const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
-                            handleDownPaymentChange(val);
+                            if (downPaymentMode === 'percent') {
+                              const val = parseFloat(e.target.value) || 0;
+                              handleDownPaymentPercentChange(Math.min(100, Math.max(0, val)));
+                            } else {
+                              const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
+                              handleDownPaymentChange(val);
+                            }
                           }}
                         />
                       </div>
                       <p className="text-xs text-blue-200/50">
-                        {propertyValue > 0 ? `${((downPayment / propertyValue) * 100).toFixed(1)}% down` : ''}
+                        {downPaymentMode === 'percent' 
+                          ? `$${downPayment.toLocaleString()} down`
+                          : propertyValue > 0 ? `${((downPayment / propertyValue) * 100).toFixed(1)}% down` : ''
+                        }
                       </p>
                     </div>
                   )}
