@@ -175,11 +175,11 @@ function createPricingScenario(
   rate: number,
   adjustedPrice: number,
   params: LoanParameters,
-  scenarioLabel: string
+  scenarioLabel: string,
+  targetPointsFromPar: number
 ): PricingScenario {
-  const pointsFromPar = 100 - adjustedPrice;
-  const isCredit = pointsFromPar < 0;
-  const pointsPercent = Math.abs(pointsFromPar);
+  const isCredit = targetPointsFromPar < 0;
+  const pointsPercent = Math.abs(targetPointsFromPar);
   const pointsDollar = params.loanAmount * (pointsPercent / 100);
   
   const termYears = getTermYears(params.loanTerm);
@@ -216,7 +216,8 @@ async function generateQuoteFromRateSheet(
       bestRateData.rate,
       bestRateData.customerPrice,
       params,
-      "Best Available Rate"
+      "Best Available Rate",
+      0
     ));
   }
   
@@ -226,7 +227,8 @@ async function generateQuoteFromRateSheet(
       onePointRate.rate,
       onePointRate.customerPrice,
       params,
-      "Pay 1 Point (Lower Rate)"
+      "Pay 1 Point (Lower Rate)",
+      1.0
     ));
   }
   
@@ -236,7 +238,8 @@ async function generateQuoteFromRateSheet(
       oneHalfPointRate.rate,
       oneHalfPointRate.customerPrice,
       params,
-      "Pay 1.5 Points (Lowest Rate)"
+      "Pay 1.5 Points (Lowest Rate)",
+      1.5
     ));
   }
   
@@ -246,7 +249,8 @@ async function generateQuoteFromRateSheet(
       creditRate.rate,
       creditRate.customerPrice,
       params,
-      "Receive 0.5 Point Credit"
+      "Receive 0.5 Point Credit",
+      -0.5
     ));
   }
   
