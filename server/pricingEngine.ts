@@ -70,107 +70,107 @@ function getTermYears(loanTerm: string): number {
   return match ? parseInt(match[1], 10) : 30;
 }
 
-// Get internal price (with lender margin subtracted)
-function getInternalPrice(basePrice: number): number {
-  return basePrice - LENDER_MARGIN;
+interface RateOption {
+  rate: number;
+  price: number;
+  pointsPercent: number;
+  pointsDollar: number;
+  isCredit: boolean;
 }
 
-// Customer sees the raw price from the rate sheet
-function getCustomerPrice(basePrice: number): number {
-  return basePrice;
-}
-
-function findRateForTargetPoints(
+// Get sorted rate options from rate sheet, using raw prices
+function getSortedRateOptions(
   rates: ParsedRate[],
-  params: LoanParameters,
-  targetPointsFromPar: number
-): { rate: number; internalPrice: number; customerPrice: number } | null {
+  params: LoanParameters
+): RateOption[] {
   const termYears = getTermYears(params.loanTerm);
   const loanTermKey = `${termYears}yr`;
   
-  const filteredRates = rates.filter(r => 
+  // Filter by term and type
+  let filteredRates = rates.filter(r => 
     r.loanTerm === loanTermKey && 
     (r.loanType === params.loanType || r.loanType === 'conventional')
   );
   
-  console.log(`[PRICING] Looking for target ${targetPointsFromPar} points, term ${loanTermKey}, type ${params.loanType}`);
+  console.log(`[PRICING] Term: ${loanTermKey}, Type: ${params.loanType}`);
   console.log(`[PRICING] Found ${filteredRates.length} matching rates out of ${rates.length} total`);
   
   if (filteredRates.length === 0) {
     const allForTerm = rates.filter(r => r.loanTerm === loanTermKey);
     console.log(`[PRICING] No type match, falling back to term only: ${allForTerm.length} rates`);
-    if (allForTerm.length === 0) return null;
-    filteredRates.push(...allForTerm);
+    if (allForTerm.length === 0) return [];
+    filteredRates = allForTerm;
   }
   
-  // Log first few rates for debugging
-  console.log(`[PRICING] Sample rates:`, filteredRates.slice(0, 5).map(r => ({
-    rate: r.rate,
-    price15Day: r.price15Day,
-    term: r.loanTerm,
-    type: r.loanType
-  })));
+  // Sort by rate (ascending - lowest rate first)
+  const sortedRates = [...filteredRates].sort((a, b) => a.rate - b.rate);
   
-  let bestMatch: { rate: number; internalPrice: number; customerPrice: number; diff: number; basePrice: number } | null = null;
+  // Log all rates for debugging
+  console.log(`[PRICING] All rates sorted by rate:`);
+  sortedRates.forEach(r => {
+    const pointsFromPar = 100 - r.price15Day;
+    const isCredit = pointsFromPar < 0;
+    console.log(`  Rate ${r.rate}% -> Price ${r.price15Day.toFixed(3)} -> ${isCredit ? 'Credit' : 'Points'}: ${Math.abs(pointsFromPar).toFixed(3)}%`);
+  });
   
-  for (const rateData of filteredRates) {
-    const internalPrice = getInternalPrice(rateData.price15Day);
-    const customerPrice = getCustomerPrice(rateData.price15Day);
-    // Match using customerPrice (raw rate sheet price)
-    const customerPointsFromPar = 100 - customerPrice;
-    const diff = Math.abs(customerPointsFromPar - targetPointsFromPar);
+  // Convert to RateOptions with calculated points/credits
+  return sortedRates.map(r => {
+    const pointsFromPar = 100 - r.price15Day;
+    const isCredit = pointsFromPar < 0;
+    const pointsPercent = Math.abs(pointsFromPar);
+    const pointsDollar = params.loanAmount * (pointsPercent / 100);
     
-    if (!bestMatch || diff < bestMatch.diff) {
-      bestMatch = {
-        rate: rateData.rate,
-        internalPrice,
-        customerPrice,
-        diff,
-        basePrice: rateData.price15Day,
-      };
+    return {
+      rate: r.rate,
+      price: r.price15Day,
+      pointsPercent,
+      pointsDollar,
+      isCredit,
+    };
+  });
+}
+
+// Find the rate closest to par (price = 100)
+function findParRateIndex(options: RateOption[]): number {
+  if (options.length === 0) return -1;
+  
+  let parIndex = 0;
+  let minDiff = Math.abs(options[0].price - 100);
+  
+  for (let i = 1; i < options.length; i++) {
+    const diff = Math.abs(options[i].price - 100);
+    if (diff < minDiff) {
+      minDiff = diff;
+      parIndex = i;
     }
   }
   
-  if (bestMatch) {
-    console.log(`[PRICING] Best match for target ${targetPointsFromPar}:`, {
-      rate: bestMatch.rate,
-      basePrice: bestMatch.basePrice,
-      customerPrice: bestMatch.customerPrice,
-      internalPrice: bestMatch.internalPrice,
-      actualPoints: 100 - bestMatch.customerPrice,
-      diff: bestMatch.diff
-    });
-  }
-  
-  return bestMatch ? { rate: bestMatch.rate, internalPrice: bestMatch.internalPrice, customerPrice: bestMatch.customerPrice } : null;
+  console.log(`[PRICING] Par rate index: ${parIndex}, rate: ${options[parIndex].rate}%, price: ${options[parIndex].price.toFixed(3)}`);
+  return parIndex;
 }
 
-function createPricingScenario(
-  rate: number,
-  customerPrice: number,
+function createPricingScenarioFromOption(
+  option: RateOption,
   params: LoanParameters,
   scenarioLabel: string
 ): PricingScenario {
-  // Calculate actual points from the customer-facing price
-  const pointsFromPar = 100 - customerPrice;
-  const isCredit = pointsFromPar < 0;
-  const pointsPercent = Math.abs(pointsFromPar);
-  const pointsDollar = params.loanAmount * (pointsPercent / 100);
-  
   const termYears = getTermYears(params.loanTerm);
-  const monthlyPayment = calculateMonthlyPayment(params.loanAmount, rate, termYears);
+  const monthlyPayment = calculateMonthlyPayment(params.loanAmount, option.rate, termYears);
   
   const baseFees = 1500;
-  const totalFees = isCredit ? Math.max(0, baseFees - pointsDollar) : baseFees + pointsDollar;
-  const apr = calculateApr(params.loanAmount, rate, termYears, totalFees);
+  const totalFees = option.isCredit ? Math.max(0, baseFees - option.pointsDollar) : baseFees + option.pointsDollar;
+  const apr = calculateApr(params.loanAmount, option.rate, termYears, totalFees);
+  
+  console.log(`[PRICING] Creating scenario: ${scenarioLabel}`);
+  console.log(`  Rate: ${option.rate}%, Price: ${option.price.toFixed(3)}, ${option.isCredit ? 'Credit' : 'Points'}: $${option.pointsDollar.toFixed(2)} (${option.pointsPercent.toFixed(3)}%)`);
   
   return {
-    rate: Math.round(rate * 1000) / 1000,
+    rate: Math.round(option.rate * 1000) / 1000,
     apr: Math.round(apr * 1000) / 1000,
     monthlyPayment: Math.round(monthlyPayment * 100) / 100,
-    pointsPercent: Math.round(pointsPercent * 1000) / 1000,
-    pointsDollar: Math.round(pointsDollar * 100) / 100,
-    isCredit,
+    pointsPercent: Math.round(option.pointsPercent * 1000) / 1000,
+    pointsDollar: Math.round(option.pointsDollar * 100) / 100,
+    isCredit: option.isCredit,
     scenarioLabel,
   };
 }
@@ -183,61 +183,109 @@ async function generateQuoteFromRateSheet(
     return null;
   }
   
-  const scenarios: PricingScenario[] = [];
+  console.log(`\n[PRICING] ========== Processing ${parsedSheet.lenderName} ==========`);
   
-  // Par rate (0 points) - customer pays nothing extra
-  const bestRateData = findRateForTargetPoints(parsedSheet.rates, params, 0);
-  if (bestRateData) {
-    scenarios.push(createPricingScenario(
-      bestRateData.rate,
-      bestRateData.customerPrice,
-      params,
-      "Par Rate (No Points)"
-    ));
+  // Get all rate options sorted by rate (lowest first)
+  const rateOptions = getSortedRateOptions(parsedSheet.rates, params);
+  
+  if (rateOptions.length === 0) {
+    console.log(`[PRICING] No rate options found for ${parsedSheet.lenderName}`);
+    return null;
   }
   
-  // Pay 1 point for lower rate
-  const onePointRate = findRateForTargetPoints(parsedSheet.rates, params, 1.0);
-  if (onePointRate) {
-    scenarios.push(createPricingScenario(
-      onePointRate.rate,
-      onePointRate.customerPrice,
+  // Find the par rate (price closest to 100)
+  const parIndex = findParRateIndex(rateOptions);
+  if (parIndex === -1) return null;
+  
+  const scenarios: PricingScenario[] = [];
+  
+  // Scenario 1: Par Rate (price closest to 100)
+  const parOption = rateOptions[parIndex];
+  scenarios.push(createPricingScenarioFromOption(
+    parOption,
+    params,
+    parOption.isCredit ? "Par Rate (Small Credit)" : "Par Rate (No Points)"
+  ));
+  
+  // Scenario 2: Buy down - go to lower rates (higher index in sorted list = higher rate, so go lower index)
+  // Lower rate = pay more points (price < 100)
+  // Find a rate that requires paying ~1 point
+  let buyDownOption: RateOption | null = null;
+  for (let i = parIndex - 1; i >= 0; i--) {
+    if (rateOptions[i].pointsPercent >= 0.75 && !rateOptions[i].isCredit) {
+      buyDownOption = rateOptions[i];
+      break;
+    }
+  }
+  // If no ~1 point option found, take the lowest available rate
+  if (!buyDownOption && parIndex > 0) {
+    buyDownOption = rateOptions[0];
+  }
+  if (buyDownOption && buyDownOption.rate !== parOption.rate) {
+    scenarios.push(createPricingScenarioFromOption(
+      buyDownOption,
       params,
       "Pay Points (Lower Rate)"
     ));
   }
   
-  // Pay 1.5 points for even lower rate
-  const oneHalfPointRate = findRateForTargetPoints(parsedSheet.rates, params, 1.5);
-  if (oneHalfPointRate) {
-    scenarios.push(createPricingScenario(
-      oneHalfPointRate.rate,
-      oneHalfPointRate.customerPrice,
+  // Scenario 3: Even more buy down - lowest rate available
+  if (parIndex > 1 && rateOptions[0].rate !== buyDownOption?.rate && rateOptions[0].rate !== parOption.rate) {
+    scenarios.push(createPricingScenarioFromOption(
+      rateOptions[0],
       params,
       "Pay Points (Lowest Rate)"
     ));
   }
   
-  // Receive credit (higher rate)
-  const creditRate = findRateForTargetPoints(parsedSheet.rates, params, -0.5);
-  if (creditRate) {
-    scenarios.push(createPricingScenario(
-      creditRate.rate,
-      creditRate.customerPrice,
+  // Scenario 4: Credit - go to higher rates (price > 100 = credit)
+  // Find a rate that gives meaningful credit
+  let creditOption: RateOption | null = null;
+  for (let i = parIndex + 1; i < rateOptions.length; i++) {
+    if (rateOptions[i].isCredit && rateOptions[i].pointsPercent >= 0.5) {
+      creditOption = rateOptions[i];
+      break;
+    }
+  }
+  // If no meaningful credit found, take the highest rate with credit
+  if (!creditOption) {
+    for (let i = rateOptions.length - 1; i > parIndex; i--) {
+      if (rateOptions[i].isCredit) {
+        creditOption = rateOptions[i];
+        break;
+      }
+    }
+  }
+  if (creditOption && creditOption.rate !== parOption.rate) {
+    scenarios.push(createPricingScenarioFromOption(
+      creditOption,
       params,
       "Receive Lender Credit"
     ));
   }
   
-  if (scenarios.length === 0) {
-    return null;
+  // Also show high credit option if available
+  if (rateOptions.length > parIndex + 2) {
+    const highCreditOption = rateOptions[rateOptions.length - 1];
+    if (highCreditOption.isCredit && 
+        highCreditOption.rate !== creditOption?.rate && 
+        highCreditOption.rate !== parOption.rate &&
+        highCreditOption.pointsPercent >= 1.5) {
+      scenarios.push(createPricingScenarioFromOption(
+        highCreditOption,
+        params,
+        "Maximum Lender Credit"
+      ));
+    }
   }
+  
+  console.log(`[PRICING] Generated ${scenarios.length} scenarios for ${parsedSheet.lenderName}`);
   
   return {
     lenderName: parsedSheet.lenderName,
     scenarios,
-    basePrice: bestRateData?.customerPrice || 100,
-    adjustedPrice: bestRateData?.customerPrice || 100,
+    basePrice: parOption.price,
+    adjustedPrice: parOption.price,
   };
 }
 

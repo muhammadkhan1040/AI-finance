@@ -4,7 +4,7 @@ import { Check, ArrowRight, DollarSign, Calculator, Info, ChevronDown, ChevronUp
 import brokerPhoto from "@assets/profile_picture_optimized.jpg";
 import atozLogo from "@assets/offical_logo_color_correct_normal_backgoorund_1767722280788.png";
 import { GlassButton } from "./ui/glass-button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -212,6 +212,11 @@ interface YourDetailsPanelProps {
 
 function YourDetailsPanel({ lead, isExpanded, onToggle, onUpdateRates, isUpdating }: YourDetailsPanelProps) {
   const [editedLead, setEditedLead] = useState<Lead>(lead);
+
+  // Sync editedLead when lead prop changes (e.g., after resubmit)
+  useEffect(() => {
+    setEditedLead(lead);
+  }, [lead]);
 
   const handleSubmit = () => {
     onUpdateRates(editedLead);
