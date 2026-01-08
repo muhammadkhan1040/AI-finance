@@ -25,6 +25,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
   const [step, setStep] = useState(0);
   const [downPayment, setDownPayment] = useState(100000);
   const [downPaymentPercent, setDownPaymentPercent] = useState(22.22);
+  const [downPaymentPercentInput, setDownPaymentPercentInput] = useState("22.22");
   const [downPaymentMode, setDownPaymentMode] = useState<'percent' | 'dollar'>('percent');
   const { mutate, isPending } = useCreateLead();
   
@@ -71,10 +72,13 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
     }
   };
 
-  const handleDownPaymentPercentChange = (percent: number) => {
-    setDownPaymentPercent(percent);
+  const handleDownPaymentPercentChange = (percentStr: string) => {
+    setDownPaymentPercentInput(percentStr);
+    const percent = parseFloat(percentStr) || 0;
+    const clampedPercent = Math.min(100, Math.max(0, percent));
+    setDownPaymentPercent(clampedPercent);
     const currentPropertyValue = getValues("propertyValue") || 0;
-    const newDownPayment = Math.round((percent / 100) * currentPropertyValue);
+    const newDownPayment = Math.round((clampedPercent / 100) * currentPropertyValue);
     setDownPayment(newDownPayment);
     const newLoanAmount = Math.max(0, currentPropertyValue - newDownPayment);
     setValue("loanAmount", newLoanAmount);
@@ -86,7 +90,9 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
     const newLoanAmount = Math.max(0, currentPropertyValue - newDownPayment);
     setValue("loanAmount", newLoanAmount);
     if (currentPropertyValue > 0) {
-      setDownPaymentPercent(Number(((newDownPayment / currentPropertyValue) * 100).toFixed(2)));
+      const newPercent = Number(((newDownPayment / currentPropertyValue) * 100).toFixed(2));
+      setDownPaymentPercent(newPercent);
+      setDownPaymentPercentInput(newPercent.toString());
     }
   };
 
@@ -97,7 +103,9 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
       const newDownPayment = Math.max(0, currentPropertyValue - newLoanAmount);
       setDownPayment(newDownPayment);
       if (currentPropertyValue > 0) {
-        setDownPaymentPercent(Number(((newDownPayment / currentPropertyValue) * 100).toFixed(2)));
+        const newPercent = Number(((newDownPayment / currentPropertyValue) * 100).toFixed(2));
+        setDownPaymentPercent(newPercent);
+        setDownPaymentPercentInput(newPercent.toString());
       }
     }
   };
@@ -339,20 +347,17 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                           className="glass-input h-12 pl-10" 
                           placeholder={downPaymentMode === 'percent' ? "3.5" : "100,000"}
                           data-testid="input-down-payment"
-                          type={downPaymentMode === 'percent' ? "text" : "text"}
+                          type="text"
                           inputMode={downPaymentMode === 'percent' ? "decimal" : "numeric"}
                           value={downPaymentMode === 'percent' 
-                            ? downPaymentPercent.toString()
+                            ? downPaymentPercentInput
                             : downPayment.toLocaleString()
                           }
                           onChange={(e) => {
                             if (downPaymentMode === 'percent') {
                               const inputVal = e.target.value;
-                              if (inputVal === '' || inputVal === '.' || /^\d*\.?\d*$/.test(inputVal)) {
-                                const val = inputVal === '' || inputVal === '.' ? 0 : parseFloat(inputVal);
-                                if (!isNaN(val)) {
-                                  handleDownPaymentPercentChange(Math.min(100, Math.max(0, val)));
-                                }
+                              if (inputVal === '' || /^\d*\.?\d*$/.test(inputVal)) {
+                                handleDownPaymentPercentChange(inputVal);
                               }
                             } else {
                               const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
