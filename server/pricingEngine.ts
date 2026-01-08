@@ -35,47 +35,8 @@ export interface PricingResult {
   parseErrors: string[];
 }
 
-const LENDER_ADJUSTMENT = 2.25;
-
-const CREDIT_SCORE_ADJUSTMENTS: Record<string, number> = {
-  "excellent": 0.25,
-  "good": 0,
-  "fair": -0.375,
-  "poor": -0.75,
-};
-
-const PROPERTY_TYPE_ADJUSTMENTS: Record<string, number> = {
-  "single_family": 0,
-  "condo": -0.125,
-  "townhouse": -0.0625,
-  "multi_family": -0.25,
-  "manufactured": -0.5,
-};
-
-const LOAN_PURPOSE_ADJUSTMENTS: Record<string, number> = {
-  "purchase": 0,
-  "refinance": -0.125,
-  "cash_out": -0.375,
-};
-
-function getLtvAdjustment(ltv: number): number {
-  if (ltv <= 60) return 0.25;
-  if (ltv <= 70) return 0.125;
-  if (ltv <= 75) return 0;
-  if (ltv <= 80) return -0.125;
-  if (ltv <= 85) return -0.25;
-  if (ltv <= 90) return -0.375;
-  if (ltv <= 95) return -0.5;
-  return -0.75;
-}
-
-function getLoanAmountAdjustment(loanAmount: number): number {
-  if (loanAmount >= 500000) return 0.125;
-  if (loanAmount >= 350000) return 0.0625;
-  if (loanAmount >= 200000) return 0;
-  if (loanAmount >= 100000) return -0.125;
-  return -0.25;
-}
+// Lender margin (internal only - not shown to customer)
+const LENDER_MARGIN = 2.25;
 
 function calculateMonthlyPayment(principal: number, annualRate: number, termYears: number): number {
   const monthlyRate = annualRate / 100 / 12;
@@ -109,26 +70,14 @@ function getTermYears(loanTerm: string): number {
   return match ? parseInt(match[1], 10) : 30;
 }
 
-function normalizePrice(
-  basePrice: number,
-  params: LoanParameters,
-  includeLenderAdjustment: boolean = true
-): number {
-  const ltv = (params.loanAmount / params.propertyValue) * 100;
-  
-  let adjustedPrice = basePrice;
-  
-  if (includeLenderAdjustment) {
-    adjustedPrice -= LENDER_ADJUSTMENT;
-  }
-  
-  adjustedPrice += CREDIT_SCORE_ADJUSTMENTS[params.creditScore] || 0;
-  adjustedPrice += PROPERTY_TYPE_ADJUSTMENTS[params.propertyType] || 0;
-  adjustedPrice += LOAN_PURPOSE_ADJUSTMENTS[params.loanPurpose] || 0;
-  adjustedPrice += getLtvAdjustment(ltv);
-  adjustedPrice += getLoanAmountAdjustment(params.loanAmount);
-  
-  return adjustedPrice;
+// Get internal price (with lender margin subtracted)
+function getInternalPrice(basePrice: number): number {
+  return basePrice - LENDER_MARGIN;
+}
+
+// Customer sees the raw price from the rate sheet
+function getCustomerPrice(basePrice: number): number {
+  return basePrice;
 }
 
 function findRateForTargetPoints(
@@ -144,18 +93,30 @@ function findRateForTargetPoints(
     (r.loanType === params.loanType || r.loanType === 'conventional')
   );
   
+  console.log(`[PRICING] Looking for target ${targetPointsFromPar} points, term ${loanTermKey}, type ${params.loanType}`);
+  console.log(`[PRICING] Found ${filteredRates.length} matching rates out of ${rates.length} total`);
+  
   if (filteredRates.length === 0) {
     const allForTerm = rates.filter(r => r.loanTerm === loanTermKey);
+    console.log(`[PRICING] No type match, falling back to term only: ${allForTerm.length} rates`);
     if (allForTerm.length === 0) return null;
     filteredRates.push(...allForTerm);
   }
   
-  let bestMatch: { rate: number; internalPrice: number; customerPrice: number; diff: number } | null = null;
+  // Log first few rates for debugging
+  console.log(`[PRICING] Sample rates:`, filteredRates.slice(0, 5).map(r => ({
+    rate: r.rate,
+    price15Day: r.price15Day,
+    term: r.loanTerm,
+    type: r.loanType
+  })));
+  
+  let bestMatch: { rate: number; internalPrice: number; customerPrice: number; diff: number; basePrice: number } | null = null;
   
   for (const rateData of filteredRates) {
-    const internalPrice = normalizePrice(rateData.price15Day, params, true);
-    const customerPrice = normalizePrice(rateData.price15Day, params, false);
-    // Match using customerPrice (what customer sees), not internalPrice
+    const internalPrice = getInternalPrice(rateData.price15Day);
+    const customerPrice = getCustomerPrice(rateData.price15Day);
+    // Match using customerPrice (raw rate sheet price)
     const customerPointsFromPar = 100 - customerPrice;
     const diff = Math.abs(customerPointsFromPar - targetPointsFromPar);
     
@@ -165,8 +126,20 @@ function findRateForTargetPoints(
         internalPrice,
         customerPrice,
         diff,
+        basePrice: rateData.price15Day,
       };
     }
+  }
+  
+  if (bestMatch) {
+    console.log(`[PRICING] Best match for target ${targetPointsFromPar}:`, {
+      rate: bestMatch.rate,
+      basePrice: bestMatch.basePrice,
+      customerPrice: bestMatch.customerPrice,
+      internalPrice: bestMatch.internalPrice,
+      actualPoints: 100 - bestMatch.customerPrice,
+      diff: bestMatch.diff
+    });
   }
   
   return bestMatch ? { rate: bestMatch.rate, internalPrice: bestMatch.internalPrice, customerPrice: bestMatch.customerPrice } : null;
