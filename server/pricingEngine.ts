@@ -155,8 +155,9 @@ function findRateForTargetPoints(
   for (const rateData of filteredRates) {
     const internalPrice = normalizePrice(rateData.price15Day, params, true);
     const customerPrice = normalizePrice(rateData.price15Day, params, false);
-    const pointsFromPar = 100 - internalPrice;
-    const diff = Math.abs(pointsFromPar - targetPointsFromPar);
+    // Match using customerPrice (what customer sees), not internalPrice
+    const customerPointsFromPar = 100 - customerPrice;
+    const diff = Math.abs(customerPointsFromPar - targetPointsFromPar);
     
     if (!bestMatch || diff < bestMatch.diff) {
       bestMatch = {
@@ -173,13 +174,14 @@ function findRateForTargetPoints(
 
 function createPricingScenario(
   rate: number,
-  adjustedPrice: number,
+  customerPrice: number,
   params: LoanParameters,
-  scenarioLabel: string,
-  targetPointsFromPar: number
+  scenarioLabel: string
 ): PricingScenario {
-  const isCredit = targetPointsFromPar < 0;
-  const pointsPercent = Math.abs(targetPointsFromPar);
+  // Calculate actual points from the customer-facing price
+  const pointsFromPar = 100 - customerPrice;
+  const isCredit = pointsFromPar < 0;
+  const pointsPercent = Math.abs(pointsFromPar);
   const pointsDollar = params.loanAmount * (pointsPercent / 100);
   
   const termYears = getTermYears(params.loanTerm);
@@ -210,47 +212,47 @@ async function generateQuoteFromRateSheet(
   
   const scenarios: PricingScenario[] = [];
   
+  // Par rate (0 points) - customer pays nothing extra
   const bestRateData = findRateForTargetPoints(parsedSheet.rates, params, 0);
   if (bestRateData) {
     scenarios.push(createPricingScenario(
       bestRateData.rate,
       bestRateData.customerPrice,
       params,
-      "Best Available Rate",
-      0
+      "Par Rate (No Points)"
     ));
   }
   
+  // Pay 1 point for lower rate
   const onePointRate = findRateForTargetPoints(parsedSheet.rates, params, 1.0);
   if (onePointRate) {
     scenarios.push(createPricingScenario(
       onePointRate.rate,
       onePointRate.customerPrice,
       params,
-      "Pay 1 Point (Lower Rate)",
-      1.0
+      "Pay Points (Lower Rate)"
     ));
   }
   
+  // Pay 1.5 points for even lower rate
   const oneHalfPointRate = findRateForTargetPoints(parsedSheet.rates, params, 1.5);
   if (oneHalfPointRate) {
     scenarios.push(createPricingScenario(
       oneHalfPointRate.rate,
       oneHalfPointRate.customerPrice,
       params,
-      "Pay 1.5 Points (Lowest Rate)",
-      1.5
+      "Pay Points (Lowest Rate)"
     ));
   }
   
+  // Receive credit (higher rate)
   const creditRate = findRateForTargetPoints(parsedSheet.rates, params, -0.5);
   if (creditRate) {
     scenarios.push(createPricingScenario(
       creditRate.rate,
       creditRate.customerPrice,
       params,
-      "Receive 0.5 Point Credit",
-      -0.5
+      "Receive Lender Credit"
     ));
   }
   
