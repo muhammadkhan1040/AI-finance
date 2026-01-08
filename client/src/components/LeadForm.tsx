@@ -337,16 +337,23 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                         )}
                         <Input 
                           className="glass-input h-12 pl-10" 
-                          placeholder={downPaymentMode === 'percent' ? "20" : "100,000"}
+                          placeholder={downPaymentMode === 'percent' ? "3.5" : "100,000"}
                           data-testid="input-down-payment"
+                          type={downPaymentMode === 'percent' ? "text" : "text"}
+                          inputMode={downPaymentMode === 'percent' ? "decimal" : "numeric"}
                           value={downPaymentMode === 'percent' 
-                            ? downPaymentPercent 
+                            ? downPaymentPercent.toString()
                             : downPayment.toLocaleString()
                           }
                           onChange={(e) => {
                             if (downPaymentMode === 'percent') {
-                              const val = parseFloat(e.target.value) || 0;
-                              handleDownPaymentPercentChange(Math.min(100, Math.max(0, val)));
+                              const inputVal = e.target.value;
+                              if (inputVal === '' || inputVal === '.' || /^\d*\.?\d*$/.test(inputVal)) {
+                                const val = inputVal === '' || inputVal === '.' ? 0 : parseFloat(inputVal);
+                                if (!isNaN(val)) {
+                                  handleDownPaymentPercentChange(Math.min(100, Math.max(0, val)));
+                                }
+                              }
                             } else {
                               const val = parseInt(e.target.value.replace(/,/g, '')) || 0;
                               handleDownPaymentChange(val);
