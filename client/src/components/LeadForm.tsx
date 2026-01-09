@@ -33,6 +33,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
     resolver: zodResolver(insertLeadSchema),
     defaultValues: {
       loanPurpose: "purchase",
+      refinanceType: "rate_term",
       creditScore: "740-759",
       loanAmount: 350000,
       propertyValue: 450000,
@@ -258,6 +259,24 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                       <div className="text-xs text-white/60">I want to lower my rate or get cash out</div>
                     </div>
                   </button>
+
+                  {loanPurpose === "refinance" && (
+                    <div className="space-y-2 pl-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <Label className="text-blue-200 text-sm">Refinance Type</Label>
+                      <Select
+                        value={watch("refinanceType") || "rate_term"}
+                        onValueChange={(value) => setValue("refinanceType", value)}
+                      >
+                        <SelectTrigger className="glass-input h-12" data-testid="select-refinance-type">
+                          <SelectValue placeholder="Select refinance type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="rate_term">Rate & Term Refinance</SelectItem>
+                          <SelectItem value="cash_out">Cash-Out Refinance</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}

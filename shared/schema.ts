@@ -10,6 +10,7 @@ export const leads = pgTable("leads", {
   phone: text("phone").notNull(),
   loanAmount: integer("loan_amount").notNull(),
   loanPurpose: text("loan_purpose").notNull(), // 'purchase' | 'refinance'
+  refinanceType: text("refinance_type"), // 'rate_term' | 'cash_out' - only for refinance
   creditScore: text("credit_score").notNull(), // 'excellent' | 'good' | 'fair' | 'poor'
   zipCode: text("zip_code").notNull(),
   propertyValue: integer("property_value").notNull(),
