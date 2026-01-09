@@ -260,23 +260,6 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                     </div>
                   </button>
 
-                  {loanPurpose === "refinance" && (
-                    <div className="space-y-2 pl-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <Label className="text-blue-200 text-sm">Refinance Type</Label>
-                      <Select
-                        value={watch("refinanceType") || "rate_term"}
-                        onValueChange={(value) => setValue("refinanceType", value)}
-                      >
-                        <SelectTrigger className="glass-input h-12" data-testid="select-refinance-type">
-                          <SelectValue placeholder="Select refinance type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="rate_term">Rate & Term Refinance</SelectItem>
-                          <SelectItem value="cash_out">Cash-Out Refinance</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                 </div>
               </motion.div>
             )}
@@ -305,6 +288,24 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                     />
                     {errors.zipCode && <span className="text-red-400 text-xs">{errors.zipCode.message}</span>}
                   </div>
+
+                  {loanPurpose === "refinance" && (
+                    <div className="space-y-2">
+                      <Label className="text-blue-200">Refinance Type</Label>
+                      <Select
+                        value={watch("refinanceType") || "rate_term"}
+                        onValueChange={(value) => setValue("refinanceType", value)}
+                      >
+                        <SelectTrigger className="glass-input h-12" data-testid="select-refinance-type">
+                          <SelectValue placeholder="Select refinance type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="rate_term">Rate & Term Refinance</SelectItem>
+                          <SelectItem value="cash_out">Cash-Out Refinance</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label className="text-blue-200">{loanPurpose === "purchase" ? "Purchase Price" : "Estimated Value"}</Label>

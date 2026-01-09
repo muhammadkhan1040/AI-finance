@@ -1,76 +1,14 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { type Rate, type Lead } from "@shared/schema";
-import { Check, ArrowRight, DollarSign, Calculator, Info, ChevronDown, ChevronUp, Search, ShieldCheck, User, Star, Home, Shield } from "lucide-react";
+import { Check, ArrowRight, DollarSign, Calculator, Info, ChevronDown, ChevronUp, Search, ShieldCheck, User, Star, Home } from "lucide-react";
 import brokerPhoto from "@assets/profile_picture_optimized.jpg";
 import atozLogo from "@assets/offical_logo_color_correct_normal_backgoorund_1767722280788.png";
 import { GlassButton } from "./ui/glass-button";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const PMI_CHART: Record<string, Record<string, number>> = {
-  "760+": { "97": 0.55, "95": 0.46, "90": 0.30, "85": 0.19 },
-  "720-759": { "97": 0.85, "95": 0.70, "90": 0.45, "85": 0.28 },
-  "680-719": { "97": 1.15, "95": 0.98, "90": 0.65, "85": 0.40 },
-  "640-679": { "97": 1.60, "95": 1.35, "90": 0.90, "85": 0.60 },
-  "620-639": { "97": 1.85, "95": 1.55, "90": 1.10, "85": 0.75 },
-};
-
-function getLTVBucket(ltv: number): string {
-  if (ltv >= 95) return "97";
-  if (ltv >= 90) return "95";
-  if (ltv >= 85) return "90";
-  return "85";
-}
-
-function getCreditScoreBucket(creditScore: string): string {
-  const scoreMap: Record<string, string> = {
-    "780+": "760+",
-    "760-780": "760+",
-    "760-779": "760+",
-    "740-759": "720-759",
-    "720-739": "720-759",
-    "700-719": "680-719",
-    "680-699": "680-719",
-    "660-679": "640-679",
-    "640-679": "640-679",
-    "620-639": "620-639",
-    "601-619": "620-639",
-    "580-600": "620-639",
-    "excellent": "760+",
-    "good": "720-759",
-    "fair": "680-719",
-    "poor": "620-639",
-  };
-  return scoreMap[creditScore] || "620-639";
-}
-
-function calculateMI(loanType: string, loanAmount: number, propertyValue: number, creditScore: string): { monthly: number; annual: number; rate: number; isEditable: boolean } {
-  const ltv = (loanAmount / propertyValue) * 100;
-  
-  if (loanType === "fha") {
-    const rate = 0.55;
-    const annual = (loanAmount * rate) / 100;
-    return { monthly: annual / 12, annual, rate, isEditable: false };
-  }
-  
-  if (loanType === "usda") {
-    const rate = 0.35;
-    const annual = (loanAmount * rate) / 100;
-    return { monthly: annual / 12, annual, rate, isEditable: false };
-  }
-  
-  if (loanType === "conventional" && ltv > 80) {
-    const ltvBucket = getLTVBucket(ltv);
-    const scoreBucket = getCreditScoreBucket(creditScore);
-    const rate = PMI_CHART[scoreBucket]?.[ltvBucket] || 0.55;
-    const annual = (loanAmount * rate) / 100;
-    return { monthly: annual / 12, annual, rate, isEditable: true };
-  }
-  
-  return { monthly: 0, annual: 0, rate: 0, isEditable: false };
-}
 import {
   Select,
   SelectContent,
@@ -661,15 +599,6 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
   const [isUpdating, setIsUpdating] = useState(false);
   const [rates, setRates] = useState<Rate[]>(initialRates);
   const [lead, setLead] = useState<Lead>(initialLead);
-  const [monthlyTaxes, setMonthlyTaxes] = useState(100);
-  const [monthlyInsurance, setMonthlyInsurance] = useState(75);
-  const [customPMI, setCustomPMI] = useState<number | null>(null);
-
-  const miInfo = useMemo(() => {
-    return calculateMI(lead.loanType, lead.loanAmount, lead.propertyValue, lead.creditScore);
-  }, [lead.loanType, lead.loanAmount, lead.propertyValue, lead.creditScore]);
-
-  const effectiveMI = customPMI !== null && miInfo.isEditable ? customPMI : miInfo.monthly;
 
   const handleUpdateRates = async (updatedLead: Lead) => {
     setIsUpdating(true);
@@ -747,87 +676,6 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
         onUpdateRates={handleUpdateRates}
         isUpdating={isUpdating}
       />
-
-      <div className="glass-card rounded-xl p-4 mb-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Home className="w-4 h-4 text-blue-400" />
-          <span className="text-sm font-bold text-white">Monthly Payment Breakdown</span>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="space-y-1">
-            <Label className="text-[10px] text-blue-200/60 uppercase tracking-wide flex items-center gap-1">
-              Property Taxes
-              <span className="text-blue-200/40">(${(monthlyTaxes * 12).toLocaleString()}/yr)</span>
-            </Label>
-            <div className="relative">
-              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-300/50 text-xs">$</span>
-              <Input
-                type="number"
-                value={monthlyTaxes}
-                onChange={(e) => setMonthlyTaxes(Math.max(0, parseFloat(e.target.value) || 0))}
-                className="bg-white/5 border-white/10 text-white text-sm h-9 pl-5 w-full"
-                data-testid="input-monthly-taxes"
-              />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-[10px] text-blue-200/60 uppercase tracking-wide flex items-center gap-1">
-              Insurance (HOI)
-              <span className="text-blue-200/40">(${(monthlyInsurance * 12).toLocaleString()}/yr)</span>
-            </Label>
-            <div className="relative">
-              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-300/50 text-xs">$</span>
-              <Input
-                type="number"
-                value={monthlyInsurance}
-                onChange={(e) => setMonthlyInsurance(Math.max(0, parseFloat(e.target.value) || 0))}
-                className="bg-white/5 border-white/10 text-white text-sm h-9 pl-5 w-full"
-                data-testid="input-monthly-insurance"
-              />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-[10px] text-blue-200/60 uppercase tracking-wide flex items-center gap-1">
-              <Shield className="w-3 h-3" />
-              {lead.loanType === "fha" ? "FHA MIP" : lead.loanType === "usda" ? "USDA GF" : "PMI"}
-              <span className="text-blue-200/40">({miInfo.rate}%/yr)</span>
-            </Label>
-            {miInfo.isEditable ? (
-              <div className="relative">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-blue-300/50 text-xs">$</span>
-                <Input
-                  type="number"
-                  value={customPMI !== null ? customPMI : miInfo.monthly}
-                  onChange={(e) => setCustomPMI(Math.max(0, parseFloat(e.target.value) || 0))}
-                  className="bg-white/5 border-white/10 text-white text-sm h-9 pl-5 w-full"
-                  data-testid="input-monthly-pmi"
-                />
-              </div>
-            ) : (
-              <div className="h-9 flex items-center px-2 rounded bg-white/5 border border-white/10">
-                <span className="text-white text-sm">${effectiveMI.toFixed(2)}/mo</span>
-                {effectiveMI > 0 && (
-                  <span className="ml-auto text-[9px] text-blue-200/40">Fixed</span>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="space-y-1">
-            <Label className="text-[10px] text-blue-200/60 uppercase tracking-wide">Total Add-ons</Label>
-            <div className="h-9 flex items-center px-2 rounded bg-[#5cffb5]/10 border border-[#5cffb5]/30">
-              <span className="text-[#5cffb5] text-sm font-bold">
-                ${(monthlyTaxes + monthlyInsurance + effectiveMI).toFixed(2)}/mo
-              </span>
-            </div>
-          </div>
-        </div>
-        {effectiveMI === 0 && lead.loanType === "conventional" && (
-          <div className="mt-2 text-[10px] text-blue-200/50 flex items-center gap-1">
-            <Check className="w-3 h-3 text-[#5cffb5]" />
-            No PMI required - LTV is 80% or less
-          </div>
-        )}
-      </div>
 
       <div className="grid gap-3">
         {rates.map((rate, index) => {
@@ -907,12 +755,9 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
                 </div>
 
                 <div className="text-right flex-shrink-0">
-                  <div className="text-[10px] text-blue-200/50 uppercase tracking-wide">P&I</div>
+                  <div className="text-[10px] text-blue-200/50 uppercase tracking-wide">Monthly</div>
                   <div className="text-lg md:text-xl font-bold text-white">
                     ${rate.monthlyPayment.toLocaleString()}
-                  </div>
-                  <div className="text-[10px] text-blue-200/40 mt-0.5">
-                    Total: ${(rate.monthlyPayment + monthlyTaxes + monthlyInsurance + effectiveMI).toFixed(2)}
                   </div>
                 </div>
 
