@@ -438,18 +438,31 @@ async function runLocalPricingPass(params: LoanParameters): Promise<PricingResul
 }
 
 async function runPricingPass(params: LoanParameters): Promise<PricingResult> {
+  // Prioritize local Excel parsing as it reads columns directly and is more accurate
+  // LlamaCloud text extraction may not correctly identify price columns
+  console.log("[PRICING] Using local Excel parsing for accurate rate extraction");
+  
+  const localResult = await runLocalPricingPass(params);
+  
+  // If local parsing found quotes, use them
+  if (localResult.quotes.length > 0) {
+    console.log(`[PRICING] Local parsing found ${localResult.quotes.length} lender quotes`);
+    return localResult;
+  }
+  
+  // Only try LlamaCloud as fallback if local parsing found nothing
   const useLlamaCloud = process.env.LLAMA_CLOUD_API_KEY && process.env.USE_LLAMA_CLOUD !== "false";
   
   if (useLlamaCloud) {
     try {
+      console.log("[PRICING] No local quotes found, trying LlamaCloud as fallback...");
       return await runLlamaCloudPricingPass(params);
     } catch (error) {
-      console.error("[PRICING] LlamaCloud error, falling back to local:", error);
-      return runLocalPricingPass(params);
+      console.error("[PRICING] LlamaCloud error:", error);
     }
   }
   
-  return runLocalPricingPass(params);
+  return localResult;
 }
 
 export async function calculateRates(params: LoanParameters): Promise<PricingResult> {

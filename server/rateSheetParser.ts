@@ -60,11 +60,15 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
     const buffer = Buffer.from(base64Data, 'base64');
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     
+    console.log(`[PARSER] Parsing Excel for ${lenderName}, sheets: ${workbook.SheetNames.join(', ')}`);
+    
     const rates: ParsedRate[] = [];
     
     for (const sheetName of workbook.SheetNames) {
       const sheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+      
+      console.log(`[PARSER] Sheet "${sheetName}" has ${jsonData.length} rows`);
       
       let currentLoanTerm = "30yr";
       let currentLoanType = "conventional";
@@ -78,11 +82,13 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
         const detectedTerm = detectLoanTerm(rowText);
         if (detectedTerm) {
           currentLoanTerm = detectedTerm;
+          console.log(`[PARSER] Row ${rowIdx}: Detected term ${detectedTerm}`);
         }
         
         const detectedType = detectLoanType(rowText);
         if (detectedType) {
           currentLoanType = detectedType;
+          console.log(`[PARSER] Row ${rowIdx}: Detected type ${detectedType}`);
         }
         
         const rateCell = row[0];
@@ -92,6 +98,7 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
           const price45 = typeof row[3] === 'number' ? row[3] : parseFloat(String(row[3]));
           
           if (!isNaN(price15) && price15 > 90 && price15 < 110) {
+            console.log(`[PARSER] Row ${rowIdx}: Rate ${rateCell}% -> 15d: ${price15}, 30d: ${price30}, 45d: ${price45} [${currentLoanTerm} ${currentLoanType}]`);
             rates.push({
               rate: rateCell,
               price15Day: price15,
@@ -105,6 +112,8 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
       }
     }
     
+    console.log(`[PARSER] ${lenderName}: Found ${rates.length} valid rates`);
+    
     return {
       lenderName,
       rates,
@@ -112,6 +121,7 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
       parseError: rates.length === 0 ? "No valid rates found in Excel file" : undefined,
     };
   } catch (error) {
+    console.error(`[PARSER] ${lenderName}: Excel parse error:`, error);
     return {
       lenderName,
       rates: [],
@@ -127,7 +137,7 @@ export async function parsePdfRateSheet(fileData: string, lenderName: string): P
     const buffer = Buffer.from(base64Data, 'base64');
     
     // Dynamic import for pdf-parse (CommonJS module)
-    const pdfParse = await import('pdf-parse');
+    const pdfParse = await import('pdf-parse') as any;
     const pdf = pdfParse.default || pdfParse;
     const pdfData = await pdf(buffer);
     const text = pdfData.text;
