@@ -70,8 +70,31 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
       
       console.log(`[PARSER] Sheet "${sheetName}" has ${jsonData.length} rows`);
       
-      let currentLoanTerm = "30yr";
-      let currentLoanType = "conventional";
+      // Infer loan type from sheet name first
+      const sheetLoanType = detectLoanType(sheetName);
+      const sheetLoanTerm = detectLoanTerm(sheetName);
+      
+      // Special handling for common sheet name patterns
+      let inferredType = sheetLoanType;
+      let inferredTerm = sheetLoanTerm;
+      
+      // GNMA = Government loans (FHA/VA/USDA)
+      if (/gnma/i.test(sheetName) && !inferredType) {
+        inferredType = "fha"; // Default for GNMA sheets
+      }
+      // FHLMC-FNMA = Conventional conforming
+      if (/fhlmc|fnma|freddie|fannie/i.test(sheetName) && !inferredType) {
+        inferredType = "conventional";
+      }
+      // DU & LP = Conventional (Desktop Underwriter & Loan Prospector)
+      if (/du\s*[&|]?\s*lp|pricing/i.test(sheetName) && !inferredType) {
+        inferredType = "conventional";
+      }
+      
+      let currentLoanTerm = inferredTerm || "30yr";
+      let currentLoanType = inferredType || "conventional";
+      
+      console.log(`[PARSER] Sheet "${sheetName}" initial: term=${currentLoanTerm}, type=${currentLoanType}`);
       
       for (let rowIdx = 0; rowIdx < jsonData.length; rowIdx++) {
         const row = jsonData[rowIdx];
@@ -79,16 +102,20 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
         
         const rowText = row.map(cell => String(cell || '')).join(' ');
         
+        // Check for term/type in row but only update if clearly a header
         const detectedTerm = detectLoanTerm(rowText);
-        if (detectedTerm) {
-          currentLoanTerm = detectedTerm;
-          console.log(`[PARSER] Row ${rowIdx}: Detected term ${detectedTerm}`);
-        }
-        
         const detectedType = detectLoanType(rowText);
-        if (detectedType) {
-          currentLoanType = detectedType;
-          console.log(`[PARSER] Row ${rowIdx}: Detected type ${detectedType}`);
+        
+        // Only update if this row contains ONLY term/type info (not a rate row)
+        const hasRateData = typeof row[0] === 'number' && row[0] >= 3 && row[0] <= 12;
+        
+        if (!hasRateData) {
+          if (detectedTerm) {
+            currentLoanTerm = detectedTerm;
+          }
+          if (detectedType) {
+            currentLoanType = detectedType;
+          }
         }
         
         const rateCell = row[0];
@@ -98,7 +125,8 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
           const price45 = typeof row[3] === 'number' ? row[3] : parseFloat(String(row[3]));
           
           if (!isNaN(price15) && price15 > 90 && price15 < 110) {
-            console.log(`[PARSER] Row ${rowIdx}: Rate ${rateCell}% -> 15d: ${price15}, 30d: ${price30}, 45d: ${price45} [${currentLoanTerm} ${currentLoanType}]`);
+            // For each rate, save with the current term AND also with 30yr if we're 
+            // reading from a conventional sheet (since many sheets have combined terms)
             rates.push({
               rate: rateCell,
               price15Day: price15,
@@ -107,12 +135,32 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
               loanTerm: currentLoanTerm,
               loanType: currentLoanType,
             });
+            
+            // Also add as 30yr if this is a conventional rate and not already 30yr
+            // This ensures 30yr conventional rates are always available
+            if (currentLoanType === "conventional" && currentLoanTerm !== "30yr") {
+              rates.push({
+                rate: rateCell,
+                price15Day: price15,
+                price30Day: !isNaN(price30) && price30 > 90 ? price30 : price15,
+                price45Day: !isNaN(price45) && price45 > 90 ? price45 : price15,
+                loanTerm: "30yr",
+                loanType: currentLoanType,
+              });
+            }
           }
         }
       }
     }
     
+    // Log summary of rates by term and type
+    const rateSummary = new Map<string, number>();
+    for (const rate of rates) {
+      const key = `${rate.loanTerm} ${rate.loanType}`;
+      rateSummary.set(key, (rateSummary.get(key) || 0) + 1);
+    }
     console.log(`[PARSER] ${lenderName}: Found ${rates.length} valid rates`);
+    console.log(`[PARSER] Rate summary:`, Object.fromEntries(rateSummary));
     
     return {
       lenderName,
