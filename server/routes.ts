@@ -456,8 +456,9 @@ export async function registerRoutes(
         }
       }
       
-      // Sort by rate (lowest first)
+      // Sort by rate (lowest first) and limit to 7 rates
       rates.sort((a, b) => a.rate - b.rate);
+      rates = rates.slice(0, 7);
       
       // Create lead with quoted rates stored as JSON (with actual lender info for admin)
       const leadWithRates = {
