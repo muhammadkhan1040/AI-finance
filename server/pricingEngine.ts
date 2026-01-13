@@ -1,5 +1,6 @@
 import { parseRateSheet, type ParsedRateSheet, type ParsedRate } from './rateSheetParser';
 import { storage } from './storage';
+import { queryLlamaCloudForRates, selectBestRate, type LlamaCloudRate } from './llamaCloudService';
 
 export interface LoanParameters {
   loanAmount: number;
@@ -323,7 +324,80 @@ function validatePricingResult(result1: PricingResult, result2: PricingResult): 
   return true;
 }
 
-async function runPricingPass(params: LoanParameters): Promise<PricingResult> {
+function convertLlamaCloudRatesToParsedRates(llamaRates: LlamaCloudRate[]): ParsedRate[] {
+  return llamaRates.map(rate => ({
+    rate: rate.interestRate,
+    price15Day: rate.price15Day,
+    price30Day: rate.price30Day || rate.price15Day,
+    price45Day: rate.price45Day || rate.price15Day,
+    loanTerm: rate.loanTerm,
+    loanType: rate.loanType,
+  }));
+}
+
+async function runLlamaCloudPricingPass(params: LoanParameters): Promise<PricingResult> {
+  const ltv = (params.loanAmount / params.propertyValue) * 100;
+  
+  console.log("[PRICING] Querying LlamaCloud for rates...");
+  console.log(`[PRICING] Params: Credit=${params.creditScore}, LTV=${ltv.toFixed(1)}%, Purpose=${params.loanPurpose}, Type=${params.loanType}, Term=${params.loanTerm}`);
+  
+  const llamaResult = await queryLlamaCloudForRates({
+    creditScore: params.creditScore,
+    ltv,
+    loanPurpose: params.loanPurpose,
+    loanType: params.loanType,
+    loanTerm: params.loanTerm,
+  });
+  
+  if (!llamaResult.success || llamaResult.rates.length === 0) {
+    console.log("[PRICING] LlamaCloud query failed or returned no rates, falling back to local parsing");
+    return runLocalPricingPass(params);
+  }
+  
+  console.log(`[PRICING] LlamaCloud returned ${llamaResult.rates.length} rates`);
+  
+  const ratesByLender = new Map<string, LlamaCloudRate[]>();
+  for (const rate of llamaResult.rates) {
+    const lenderName = rate.lenderName || "Lender";
+    if (!ratesByLender.has(lenderName)) {
+      ratesByLender.set(lenderName, []);
+    }
+    ratesByLender.get(lenderName)!.push(rate);
+  }
+  
+  const quotes: LenderQuote[] = [];
+  
+  const lenderNames = Array.from(ratesByLender.keys());
+  for (const lenderName of lenderNames) {
+    const lenderRates = ratesByLender.get(lenderName)!;
+    const parsedRates = convertLlamaCloudRatesToParsedRates(lenderRates);
+    const parsedSheet: ParsedRateSheet = {
+      lenderName,
+      rates: parsedRates,
+      parseSuccess: true,
+    };
+    
+    const quote = await generateQuoteFromRateSheet(parsedSheet, params);
+    if (quote) {
+      quotes.push(quote);
+    }
+  }
+  
+  quotes.sort((a, b) => {
+    const aRate = a.scenarios[0]?.rate || 100;
+    const bRate = b.scenarios[0]?.rate || 100;
+    return aRate - bRate;
+  });
+  
+  return {
+    quotes,
+    bestQuote: quotes.length > 0 ? quotes[0] : null,
+    validationPassed: true,
+    parseErrors: [],
+  };
+}
+
+async function runLocalPricingPass(params: LoanParameters): Promise<PricingResult> {
   const activeSheets = await storage.getActiveRateSheets();
   const quotes: LenderQuote[] = [];
   const parseErrors: string[] = [];
@@ -354,6 +428,21 @@ async function runPricingPass(params: LoanParameters): Promise<PricingResult> {
     validationPassed: true,
     parseErrors,
   };
+}
+
+async function runPricingPass(params: LoanParameters): Promise<PricingResult> {
+  const useLlamaCloud = process.env.LLAMA_CLOUD_API_KEY && process.env.USE_LLAMA_CLOUD !== "false";
+  
+  if (useLlamaCloud) {
+    try {
+      return await runLlamaCloudPricingPass(params);
+    } catch (error) {
+      console.error("[PRICING] LlamaCloud error, falling back to local:", error);
+      return runLocalPricingPass(params);
+    }
+  }
+  
+  return runLocalPricingPass(params);
 }
 
 export async function calculateRates(params: LoanParameters): Promise<PricingResult> {

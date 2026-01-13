@@ -194,6 +194,16 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Maximum of 5 rate sheets allowed. Please delete one first." });
       }
 
+      // Upload to LlamaCloud for parsing
+      const { uploadFileToLlamaCloud } = await import('./llamaCloudService');
+      const llamaResult = await uploadFileToLlamaCloud(fileData, fileName, lenderName);
+      
+      if (!llamaResult.success) {
+        console.warn("[LlamaCloud] Upload failed, continuing with local storage:", llamaResult.error);
+      } else {
+        console.log("[LlamaCloud] File uploaded successfully:", llamaResult.documentId);
+      }
+
       const rateSheet = await storage.createRateSheet({
         lenderName,
         fileName,
@@ -206,7 +216,8 @@ export async function registerRoutes(
         lenderName: rateSheet.lenderName,
         fileName: rateSheet.fileName,
         isActive: rateSheet.isActive,
-        uploadedAt: rateSheet.uploadedAt
+        uploadedAt: rateSheet.uploadedAt,
+        llamaCloudSync: llamaResult.success
       });
     } catch (err) {
       console.error("Error uploading rate sheet:", err);
