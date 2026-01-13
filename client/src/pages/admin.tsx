@@ -102,14 +102,20 @@ export default function Admin() {
   };
 
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadLenderName, setUploadLenderName] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const extractLenderName = (fileName: string): string => {
+    const name = fileName.replace(/\.[^/.]+$/, "");
+    return name.replace(/[_-]/g, " ").replace(/\d{10,}/g, "").trim() || "Rate Sheet";
+  };
+
+  const uploadFile = async (file: File) => {
     if (!file) return;
-
-    if (!uploadLenderName.trim()) {
-      alert("Please enter a lender name first");
+    
+    const validTypes = ['.csv', '.xls', '.xlsx', '.pdf'];
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!validTypes.includes(ext)) {
+      alert("Please upload a CSV, Excel, or PDF file");
       return;
     }
 
@@ -118,15 +124,16 @@ export default function Admin() {
       const reader = new FileReader();
       reader.onload = async (event) => {
         const fileData = event.target?.result as string;
+        const lenderName = extractLenderName(file.name);
         const response = await apiRequest("POST", "/api/admin/rate-sheets", {
-          lenderName: uploadLenderName.trim(),
+          lenderName: lenderName,
           fileName: file.name,
           fileData: fileData
         });
         
         if (response.ok) {
-          setUploadLenderName("");
           refetchRateSheets();
+          refetchStatus();
         } else {
           const error = await response.json();
           alert(error.message || "Upload failed");
@@ -139,7 +146,33 @@ export default function Admin() {
       alert("Failed to upload rate sheet");
       setIsUploading(false);
     }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await uploadFile(file);
     e.target.value = "";
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    
+    const file = e.dataTransfer.files?.[0];
+    if (file) await uploadFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
   };
 
   const handleDeleteRateSheet = async (id: number) => {
@@ -358,33 +391,36 @@ export default function Admin() {
                 )}
 
                 {(!rateSheets || rateSheets.length < 5) && (
-                  <>
-                    <input
-                      type="text"
-                      placeholder="Lender name (e.g., UWM, PRMG)"
-                      value={uploadLenderName}
-                      onChange={(e) => setUploadLenderName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-blue-200/40 text-sm"
-                      data-testid="input-lender-name"
+                  <label 
+                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer block ${
+                      isDragOver 
+                        ? 'border-blue-500 bg-blue-500/10' 
+                        : 'border-white/20 hover:border-blue-500/50'
+                    }`}
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    data-testid="dropzone-rate-sheet"
+                  >
+                    <input 
+                      type="file" 
+                      accept=".csv,.xls,.xlsx,.pdf"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      disabled={isUploading}
+                      data-testid="input-rate-sheet-file"
                     />
-                    <label className="border-2 border-dashed border-white/20 rounded-xl p-6 text-center hover:border-blue-500/50 transition-colors cursor-pointer block">
-                      <input 
-                        type="file" 
-                        accept=".csv,.xls,.xlsx,.pdf"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        disabled={isUploading}
-                        data-testid="input-rate-sheet-file"
-                      />
-                      {isUploading ? (
-                        <Loader2 className="w-6 h-6 mx-auto mb-2 text-blue-400 animate-spin" />
-                      ) : (
-                        <Upload className="w-6 h-6 mx-auto mb-2 text-blue-400" />
-                      )}
-                      <p className="text-sm text-white font-medium">Drop rate sheet here</p>
-                      <p className="text-xs text-blue-200/40 mt-1">Excel (.xlsx) recommended, PDF also supported</p>
-                    </label>
-                  </>
+                    {isUploading ? (
+                      <Loader2 className="w-8 h-8 mx-auto mb-3 text-blue-400 animate-spin" />
+                    ) : (
+                      <Upload className="w-8 h-8 mx-auto mb-3 text-blue-400" />
+                    )}
+                    <p className="text-base text-white font-medium">
+                      {isDragOver ? 'Drop file here' : 'Drag & drop rate sheet here'}
+                    </p>
+                    <p className="text-sm text-blue-200/60 mt-1">or click to browse</p>
+                    <p className="text-xs text-blue-200/40 mt-2">Excel (.xlsx) recommended, PDF also supported</p>
+                  </label>
                 )}
 
                 <p className="text-xs text-blue-200/40 italic">
