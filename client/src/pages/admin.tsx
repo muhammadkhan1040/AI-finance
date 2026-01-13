@@ -83,6 +83,17 @@ export default function Admin() {
     enabled: !isCheckingAuth && (rateSheets?.length ?? 0) > 0,
   });
 
+  interface LlamaCloudStatus {
+    connected: boolean;
+    message: string;
+    indexName?: string;
+  }
+
+  const { data: llamaCloudStatus } = useQuery<LlamaCloudStatus>({
+    queryKey: ["/api/admin/llamacloud-status"],
+    enabled: !isCheckingAuth,
+  });
+
   const handleRefresh = () => {
     refetch();
     refetchStats();

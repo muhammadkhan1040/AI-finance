@@ -298,6 +298,18 @@ export async function registerRoutes(
     }
   });
 
+  // Test LlamaCloud connection (protected)
+  app.get("/api/admin/llamacloud-status", requireAdmin, async (req, res) => {
+    try {
+      const { testLlamaCloudConnection } = await import('./llamaCloudService');
+      const status = await testLlamaCloudConnection();
+      res.json(status);
+    } catch (err) {
+      console.error("Error checking LlamaCloud status:", err);
+      res.json({ connected: false, message: "Error checking connection" });
+    }
+  });
+
   // Get lead statistics (protected)
   app.get("/api/admin/lead-stats", requireAdmin, async (req, res) => {
     try {

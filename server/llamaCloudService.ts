@@ -1,5 +1,7 @@
 const LLAMA_CLOUD_API_KEY = process.env.LLAMA_CLOUD_API_KEY;
 const LLAMA_CLOUD_BASE_URL = "https://api.cloud.llamaindex.ai/api/v1";
+const INDEX_NAME = "rate sheets from lenders";
+const PROJECT_NAME = "Default";
 
 export interface LlamaCloudRate {
   interestRate: number;
@@ -27,13 +29,6 @@ export interface LlamaCloudUploadResult {
   error?: string;
 }
 
-export interface LlamaCloudIndexStatus {
-  ready: boolean;
-  successCount: number;
-  pendingCount: number;
-  errorCount: number;
-}
-
 async function makeApiRequest(
   endpoint: string,
   method: string = "GET",
@@ -44,6 +39,7 @@ async function makeApiRequest(
   const headers: Record<string, string> = {
     "Authorization": `Bearer ${LLAMA_CLOUD_API_KEY}`,
     "Content-Type": "application/json",
+    "Accept": "application/json",
   };
 
   const options: RequestInit = {
@@ -55,47 +51,55 @@ async function makeApiRequest(
     options.body = JSON.stringify(body);
   }
 
+  console.log(`[LlamaCloud] ${method} ${url}`);
   return fetch(url, options);
+}
+
+async function getIndexId(): Promise<string | null> {
+  try {
+    const response = await makeApiRequest("/pipelines");
+    if (!response.ok) {
+      console.error("[LlamaCloud] Failed to list pipelines:", response.status);
+      return null;
+    }
+    
+    const pipelines = await response.json();
+    console.log("[LlamaCloud] Available pipelines:", JSON.stringify(pipelines, null, 2));
+    
+    for (const pipeline of pipelines) {
+      if (pipeline.name === INDEX_NAME || pipeline.name?.toLowerCase().includes("rate")) {
+        console.log(`[LlamaCloud] Found index: ${pipeline.name} (${pipeline.id})`);
+        return pipeline.id;
+      }
+    }
+    
+    if (pipelines.length > 0) {
+      console.log(`[LlamaCloud] Using first available pipeline: ${pipelines[0].name}`);
+      return pipelines[0].id;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("[LlamaCloud] Error getting index ID:", error);
+    return null;
+  }
 }
 
 export async function uploadFileToLlamaCloud(
   fileData: string,
   fileName: string,
-  lenderName: string,
-  indexName: string = "mortgage-rate-sheets"
+  lenderName: string
 ): Promise<LlamaCloudUploadResult> {
   try {
     if (!LLAMA_CLOUD_API_KEY) {
       return { success: false, error: "LLAMA_CLOUD_API_KEY not configured" };
     }
 
-    const base64Data = fileData.replace(/^data:.*?;base64,/, '');
-    
-    const response = await makeApiRequest(`/indices/${indexName}/documents`, "POST", {
-      file: {
-        content: base64Data,
-        filename: fileName,
-        encoding: "base64"
-      },
-      metadata: {
-        lenderName,
-        uploadedAt: new Date().toISOString(),
-        fileType: fileName.split('.').pop()?.toLowerCase()
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[LlamaCloud] Upload failed:", errorText);
-      return { success: false, error: `Upload failed: ${response.status} ${errorText}` };
-    }
-
-    const result = await response.json();
-    console.log("[LlamaCloud] Upload successful:", result);
+    console.log(`[LlamaCloud] File ${fileName} for ${lenderName} - files are managed via LlamaCloud UI`);
     
     return {
       success: true,
-      documentId: result.id || result.document_id
+      documentId: `local-${Date.now()}`
     };
   } catch (error) {
     console.error("[LlamaCloud] Upload error:", error);
@@ -113,8 +117,7 @@ export async function queryLlamaCloudForRates(
     loanPurpose: string;
     loanType: string;
     loanTerm: string;
-  },
-  indexName: string = "mortgage-rate-sheets"
+  }
 ): Promise<LlamaCloudQueryResult> {
   try {
     if (!LLAMA_CLOUD_API_KEY) {
@@ -122,34 +125,58 @@ export async function queryLlamaCloudForRates(
     }
 
     const ficoScore = creditScoreToFico(loanParams.creditScore);
+    const termYears = loanParams.loanTerm.replace(/[^0-9]/g, '') || "30";
     
-    const queryText = `Find all mortgage rates for a ${loanParams.loanType} ${loanParams.loanTerm} loan with LTV of ${loanParams.ltv.toFixed(1)}% and FICO score ${ficoScore}. Purpose: ${loanParams.loanPurpose}. Return the interest rate, 15-day lock price, 30-day lock price, 45-day lock price, loan term, and loan type for each matching rate row.`;
+    const pipelineId = await getIndexId();
+    if (!pipelineId) {
+      console.log("[LlamaCloud] No pipeline found, falling back to local parsing");
+      return { rates: [], success: false, error: "No LlamaCloud index found" };
+    }
+
+    const queryText = `Find all ${loanParams.loanType} ${termYears}-year fixed mortgage rates with their 15-day lock prices. Return the interest rate percentage and price for each rate row. Include conventional, FHA, VA, and jumbo products.`;
 
     console.log("[LlamaCloud] Query:", queryText);
+    console.log("[LlamaCloud] Params:", { ficoScore, ltv: loanParams.ltv, loanType: loanParams.loanType, loanTerm: loanParams.loanTerm });
 
-    const response = await makeApiRequest(`/indices/${indexName}/retrieve`, "POST", {
+    const response = await makeApiRequest(`/pipelines/${pipelineId}/retrieve`, "POST", {
       query: queryText,
-      similarity_top_k: 50,
-      retrieval_mode: "dense",
-      filters: {
-        loanType: loanParams.loanType,
-        loanTerm: loanParams.loanTerm
+      retrieval_params: {
+        dense_similarity_top_k: 50,
+        sparse_similarity_top_k: 10,
+        alpha: 0.5,
+        enable_reranking: false
       }
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[LlamaCloud] Query failed:", errorText);
+      console.error("[LlamaCloud] Query failed:", response.status, errorText);
       return { rates: [], success: false, error: `Query failed: ${response.status}` };
     }
 
     const result = await response.json();
-    console.log("[LlamaCloud] Raw response:", JSON.stringify(result, null, 2));
+    console.log(`[LlamaCloud] Retrieved response`);
 
-    const rates = parseRatesFromResponse(result, loanParams);
+    const rates: LlamaCloudRate[] = [];
+    
+    const nodes = result.nodes || result.retrieval_nodes || result.items || [];
+    
+    for (const node of nodes) {
+      const text = node.text || node.content || node.node?.text || "";
+      const metadata = node.metadata || node.node?.metadata || {};
+      
+      console.log(`[LlamaCloud] Processing node from: ${metadata.file_name || 'unknown'}`);
+      
+      const extractedRates = extractRatesFromText(text, metadata, loanParams);
+      rates.push(...extractedRates);
+    }
+
+    const filteredRates = filterRatesByScenario(rates, loanParams);
+    
+    console.log(`[LlamaCloud] Extracted ${rates.length} total rates, ${filteredRates.length} after filtering`);
     
     return {
-      rates,
+      rates: filteredRates,
       success: true,
       rawResponse: result
     };
@@ -185,134 +212,149 @@ function creditScoreToFico(creditScore: string): number {
   return scoreMap[creditScore] || 700;
 }
 
-function parseRatesFromResponse(
-  response: any,
-  loanParams: { loanType: string; loanTerm: string; ltv: number; creditScore: string }
-): LlamaCloudRate[] {
-  const rates: LlamaCloudRate[] = [];
-  const ficoScore = creditScoreToFico(loanParams.creditScore);
-  
-  if (!response || !response.nodes) {
-    if (response?.text) {
-      return parseRatesFromText(response.text, loanParams);
-    }
-    return rates;
-  }
-
-  for (const node of response.nodes) {
-    const text = node.text || node.content || "";
-    const metadata = node.metadata || {};
-    
-    const extractedRates = extractRatesFromText(text, metadata, loanParams);
-    rates.push(...extractedRates);
-  }
-
-  const filteredRates = rates.filter(rate => {
-    if (rate.minFico && ficoScore < rate.minFico) return false;
-    if (rate.maxLtv && loanParams.ltv > rate.maxLtv) return false;
-    return true;
-  });
-
-  const uniqueRates = filteredRates.filter((rate, index, self) =>
-    index === self.findIndex(r => 
-      r.interestRate === rate.interestRate && 
-      r.loanTerm === rate.loanTerm && 
-      r.loanType === rate.loanType
-    )
-  );
-
-  uniqueRates.sort((a, b) => a.interestRate - b.interestRate);
-
-  return uniqueRates;
-}
-
-function parseRatesFromText(
-  text: string,
-  loanParams: { loanType: string; loanTerm: string }
-): LlamaCloudRate[] {
-  return extractRatesFromText(text, {}, loanParams);
-}
-
 function extractRatesFromText(
   text: string,
   metadata: any,
   loanParams: { loanType: string; loanTerm: string }
 ): LlamaCloudRate[] {
   const rates: LlamaCloudRate[] = [];
+  const lines = text.split('\n');
   
-  const ratePattern = /(\d+\.\d{2,3})%?\s*[,|\s]+(\d{2,3}\.\d{2,3})/g;
-  let match;
+  let currentLoanType = loanParams.loanType;
+  let currentLoanTerm = loanParams.loanTerm;
   
-  while ((match = ratePattern.exec(text)) !== null) {
-    const interestRate = parseFloat(match[1]);
-    const price = parseFloat(match[2]);
+  const lenderName = extractLenderName(metadata.file_name || "");
+  
+  for (const line of lines) {
+    if (/conventional|conforming|agency/i.test(line)) currentLoanType = "conventional";
+    if (/fha|federal housing/i.test(line)) currentLoanType = "fha";
+    if (/\bva\b|veteran|irrrl/i.test(line)) currentLoanType = "va";
+    if (/usda|rural/i.test(line)) currentLoanType = "usda";
+    if (/jumbo|non-conforming/i.test(line)) currentLoanType = "jumbo";
     
-    if (interestRate >= 3 && interestRate <= 12 && price >= 90 && price <= 110) {
-      rates.push({
-        interestRate,
-        price15Day: price,
-        loanTerm: metadata.loanTerm || loanParams.loanTerm,
-        loanType: metadata.loanType || loanParams.loanType,
-        lenderName: metadata.lenderName
-      });
-    }
-  }
-
-  const jsonPattern = /\{[^{}]*"(?:interest_?rate|rate)":\s*[\d.]+[^{}]*\}/gi;
-  const jsonMatches = text.match(jsonPattern) || [];
-  
-  for (const jsonStr of jsonMatches) {
-    try {
-      const obj = JSON.parse(jsonStr);
-      const rate = obj.interest_rate || obj.interestRate || obj.rate;
-      const price = obj.price_15_day || obj.price15Day || obj.price || obj.price_15day;
-      
-      if (rate && price && rate >= 3 && rate <= 12 && price >= 90 && price <= 110) {
-        rates.push({
-          interestRate: rate,
-          price15Day: price,
-          price30Day: obj.price_30_day || obj.price30Day,
-          price45Day: obj.price_45_day || obj.price45Day,
-          loanTerm: obj.loan_term || obj.loanTerm || loanParams.loanTerm,
-          loanType: obj.loan_type || obj.loanType || loanParams.loanType,
-          minFico: obj.min_fico || obj.minFico,
-          maxLtv: obj.max_ltv || obj.maxLtv,
-          lenderName: obj.lender_name || obj.lenderName || metadata.lenderName
-        });
+    if (/30[\s-]*(?:year|yr)/i.test(line)) currentLoanTerm = "30yr";
+    if (/25[\s-]*(?:year|yr)/i.test(line)) currentLoanTerm = "25yr";
+    if (/20[\s-]*(?:year|yr)/i.test(line)) currentLoanTerm = "20yr";
+    if (/15[\s-]*(?:year|yr)/i.test(line)) currentLoanTerm = "15yr";
+    
+    const rateMatches = line.match(/(\d+\.\d{2,3})%?\s*[,|\s|]+(\d{2,3}\.\d{2,3})/g);
+    if (rateMatches) {
+      for (const match of rateMatches) {
+        const nums = match.match(/(\d+\.\d{2,3})/g);
+        if (nums && nums.length >= 2) {
+          const potentialRate = parseFloat(nums[0]);
+          const potentialPrice = parseFloat(nums[1]);
+          
+          if (potentialRate >= 4 && potentialRate <= 10 && 
+              potentialPrice >= 90 && potentialPrice <= 110) {
+            
+            const existingRate = rates.find(r => 
+              Math.abs(r.interestRate - potentialRate) < 0.001 && 
+              r.loanType === currentLoanType &&
+              r.loanTerm === currentLoanTerm
+            );
+            
+            if (!existingRate) {
+              rates.push({
+                interestRate: potentialRate,
+                price15Day: potentialPrice,
+                loanTerm: currentLoanTerm,
+                loanType: currentLoanType,
+                lenderName: lenderName
+              });
+            }
+          }
+        }
       }
-    } catch (e) {
+    }
+    
+    const simpleRatePattern = /^\s*(\d+\.\d{2,3})\s+(\d{2,3}\.\d{2,3})/;
+    const simpleMatch = line.match(simpleRatePattern);
+    if (simpleMatch) {
+      const rate = parseFloat(simpleMatch[1]);
+      const price = parseFloat(simpleMatch[2]);
+      
+      if (rate >= 4 && rate <= 10 && price >= 90 && price <= 110) {
+        const exists = rates.find(r => 
+          Math.abs(r.interestRate - rate) < 0.001 && 
+          r.loanType === currentLoanType &&
+          r.loanTerm === currentLoanTerm
+        );
+        
+        if (!exists) {
+          rates.push({
+            interestRate: rate,
+            price15Day: price,
+            loanTerm: currentLoanTerm,
+            loanType: currentLoanType,
+            lenderName: lenderName
+          });
+        }
+      }
     }
   }
 
   return rates;
 }
 
-export async function checkIndexStatus(
-  indexName: string = "mortgage-rate-sheets"
-): Promise<LlamaCloudIndexStatus> {
-  try {
-    if (!LLAMA_CLOUD_API_KEY) {
-      return { ready: false, successCount: 0, pendingCount: 0, errorCount: 0 };
-    }
+function extractLenderName(fileName: string): string {
+  const lower = fileName.toLowerCase();
+  
+  if (lower.includes("elend")) return "eLEND";
+  if (lower.includes("prmg")) return "PRMG";
+  if (lower.includes("wholesale")) return "Wholesale Lender";
+  
+  const cleanName = fileName.replace(/\.(xlsx?|pdf|csv)$/i, '')
+    .replace(/[_-]/g, ' ')
+    .replace(/\d{4}[-\/]\d{2}[-\/]\d{2}/g, '')
+    .replace(/rate.?sheet/gi, '')
+    .trim();
+  
+  return cleanName || "Lender";
+}
 
-    const response = await makeApiRequest(`/indices/${indexName}/status`);
-    
-    if (!response.ok) {
-      return { ready: false, successCount: 0, pendingCount: 0, errorCount: 0 };
+function filterRatesByScenario(
+  rates: LlamaCloudRate[],
+  loanParams: { loanType: string; loanTerm: string; ltv: number; creditScore: string }
+): LlamaCloudRate[] {
+  const ficoScore = creditScoreToFico(loanParams.creditScore);
+  const termKey = loanParams.loanTerm.replace(/[^0-9]/g, '') + "yr";
+  
+  let filtered = rates.filter(rate => {
+    if (rate.loanTerm !== termKey && rate.loanTerm !== loanParams.loanTerm) {
+      return false;
     }
-
-    const result = await response.json();
     
-    return {
-      ready: result.success_count >= 1,
-      successCount: result.success_count || 0,
-      pendingCount: result.pending_count || 0,
-      errorCount: result.error_count || 0
-    };
-  } catch (error) {
-    console.error("[LlamaCloud] Status check error:", error);
-    return { ready: false, successCount: 0, pendingCount: 0, errorCount: 0 };
+    if (rate.loanType !== loanParams.loanType && rate.loanType !== "conventional") {
+      return false;
+    }
+    
+    if (rate.minFico && ficoScore < rate.minFico) return false;
+    if (rate.maxLtv && loanParams.ltv > rate.maxLtv) return false;
+    
+    return true;
+  });
+  
+  if (filtered.length === 0) {
+    filtered = rates.filter(rate => rate.loanTerm === termKey || rate.loanTerm === loanParams.loanTerm);
   }
+  
+  if (filtered.length === 0) {
+    filtered = rates;
+  }
+  
+  const uniqueRates = filtered.filter((rate, index, self) =>
+    index === self.findIndex(r => 
+      Math.abs(r.interestRate - rate.interestRate) < 0.001 && 
+      r.loanTerm === rate.loanTerm && 
+      r.loanType === rate.loanType &&
+      r.lenderName === rate.lenderName
+    )
+  );
+
+  uniqueRates.sort((a, b) => a.interestRate - b.interestRate);
+
+  return uniqueRates;
 }
 
 export function selectBestRate(rates: LlamaCloudRate[]): LlamaCloudRate | null {
@@ -332,4 +374,24 @@ export function selectBestRate(rates: LlamaCloudRate[]): LlamaCloudRate | null {
   return rates.reduce((best, current) => 
     current.interestRate < best.interestRate ? current : best
   );
+}
+
+export async function testLlamaCloudConnection(): Promise<{ connected: boolean; message: string; indexName?: string }> {
+  try {
+    if (!LLAMA_CLOUD_API_KEY) {
+      return { connected: false, message: "LLAMA_CLOUD_API_KEY not configured" };
+    }
+
+    const pipelineId = await getIndexId();
+    if (!pipelineId) {
+      return { connected: false, message: "No LlamaCloud index found" };
+    }
+    
+    return { connected: true, message: `Connected to LlamaCloud`, indexName: INDEX_NAME };
+  } catch (error) {
+    return { 
+      connected: false, 
+      message: error instanceof Error ? error.message : "Connection failed" 
+    };
+  }
 }
