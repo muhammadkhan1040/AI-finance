@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { type Lead } from "@shared/schema";
-import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw, LogOut, TrendingUp, TrendingDown, Calendar, Sheet, Loader2, Trash2, ToggleLeft, ToggleRight, CheckCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, Users, FileSpreadsheet, Upload, RefreshCw, LogOut, TrendingUp, TrendingDown, Calendar, Sheet, Loader2, Trash2, ToggleLeft, ToggleRight, CheckCircle, AlertCircle, Cloud, CloudOff } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -390,6 +390,26 @@ export default function Admin() {
                 <p className="text-xs text-blue-200/40 italic">
                   Upload up to 5 wholesale lender rate sheets. Successfully parsed sheets will be used for live rate quotes. Sheets with parse errors will use fallback mock rates.
                 </p>
+
+                <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 ${llamaCloudStatus?.connected ? 'bg-green-500/10 border border-green-500/30' : 'bg-yellow-500/10 border border-yellow-500/30'}`}>
+                  {llamaCloudStatus?.connected ? (
+                    <>
+                      <Cloud className="w-4 h-4 text-green-400" />
+                      <div>
+                        <p className="text-sm text-green-400 font-medium">LlamaCloud Connected</p>
+                        <p className="text-xs text-green-400/60">{llamaCloudStatus.indexName || 'Index ready'}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <CloudOff className="w-4 h-4 text-yellow-400" />
+                      <div>
+                        <p className="text-sm text-yellow-400 font-medium">LlamaCloud Offline</p>
+                        <p className="text-xs text-yellow-400/60">{llamaCloudStatus?.message || 'Using local parsing fallback'}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>

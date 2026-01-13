@@ -133,7 +133,7 @@ export async function queryLlamaCloudForRates(
       return { rates: [], success: false, error: "No LlamaCloud index found" };
     }
 
-    const queryText = `Find all ${loanParams.loanType} ${termYears}-year fixed mortgage rates with their 15-day lock prices. Return the interest rate percentage and price for each rate row. Include conventional, FHA, VA, and jumbo products.`;
+    const queryText = `List all ${termYears}-year fixed mortgage rates with 15-day lock prices. For each rate, show only the interest rate percentage and the 15-day lock price (the first price column, closest to par 100.000). Format as: Rate% | 15-Day Price. Do not include 30-day, 45-day, or 60-day prices. Include ${loanParams.loanType}, conventional, FHA, VA, and jumbo products if available.`;
 
     console.log("[LlamaCloud] Query:", queryText);
     console.log("[LlamaCloud] Params:", { ficoScore, ltv: loanParams.ltv, loanType: loanParams.loanType, loanTerm: loanParams.loanTerm });
@@ -237,63 +237,41 @@ function extractRatesFromText(
     if (/20[\s-]*(?:year|yr)/i.test(line)) currentLoanTerm = "20yr";
     if (/15[\s-]*(?:year|yr)/i.test(line)) currentLoanTerm = "15yr";
     
-    const rateMatches = line.match(/(\d+\.\d{2,3})%?\s*[,|\s|]+(\d{2,3}\.\d{2,3})/g);
-    if (rateMatches) {
-      for (const match of rateMatches) {
-        const nums = match.match(/(\d+\.\d{2,3})/g);
-        if (nums && nums.length >= 2) {
-          const potentialRate = parseFloat(nums[0]);
-          const potentialPrice = parseFloat(nums[1]);
-          
-          if (potentialRate >= 4 && potentialRate <= 10 && 
-              potentialPrice >= 90 && potentialPrice <= 110) {
-            
-            const existingRate = rates.find(r => 
-              Math.abs(r.interestRate - potentialRate) < 0.001 && 
-              r.loanType === currentLoanType &&
-              r.loanTerm === currentLoanTerm
-            );
-            
-            if (!existingRate) {
-              rates.push({
-                interestRate: potentialRate,
-                price15Day: potentialPrice,
-                loanTerm: currentLoanTerm,
-                loanType: currentLoanType,
-                lenderName: lenderName
-              });
-            }
-          }
-        }
-      }
-    }
-    
-    const simpleRatePattern = /^\s*(\d+\.\d{2,3})\s+(\d{2,3}\.\d{2,3})/;
-    const simpleMatch = line.match(simpleRatePattern);
-    if (simpleMatch) {
-      const rate = parseFloat(simpleMatch[1]);
-      const price = parseFloat(simpleMatch[2]);
+    const allNumbers = line.match(/\d+\.\d{2,3}/g);
+    if (allNumbers && allNumbers.length >= 2) {
+      const firstNum = parseFloat(allNumbers[0]);
       
-      if (rate >= 4 && rate <= 10 && price >= 90 && price <= 110) {
-        const exists = rates.find(r => 
-          Math.abs(r.interestRate - rate) < 0.001 && 
-          r.loanType === currentLoanType &&
-          r.loanTerm === currentLoanTerm
-        );
+      if (firstNum >= 4 && firstNum <= 10) {
+        const price = parseFloat(allNumbers[1]);
         
-        if (!exists) {
-          rates.push({
-            interestRate: rate,
-            price15Day: price,
-            loanTerm: currentLoanTerm,
-            loanType: currentLoanType,
-            lenderName: lenderName
-          });
+        if (price >= 90 && price <= 110) {
+          const price30 = allNumbers.length > 2 ? parseFloat(allNumbers[2]) : undefined;
+          const price45 = allNumbers.length > 3 ? parseFloat(allNumbers[3]) : undefined;
+          
+          const existingRate = rates.find(r => 
+            Math.abs(r.interestRate - firstNum) < 0.001 && 
+            r.loanType === currentLoanType &&
+            r.loanTerm === currentLoanTerm &&
+            r.lenderName === lenderName
+          );
+          
+          if (!existingRate) {
+            rates.push({
+              interestRate: firstNum,
+              price15Day: price,
+              price30Day: price30 && price30 >= 90 && price30 <= 110 ? price30 : undefined,
+              price45Day: price45 && price45 >= 90 && price45 <= 110 ? price45 : undefined,
+              loanTerm: currentLoanTerm,
+              loanType: currentLoanType,
+              lenderName: lenderName
+            });
+          }
         }
       }
     }
   }
 
+  console.log(`[LlamaCloud] Extracted ${rates.length} rates from ${lenderName}`);
   return rates;
 }
 

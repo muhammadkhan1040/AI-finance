@@ -335,6 +335,8 @@ function convertLlamaCloudRatesToParsedRates(llamaRates: LlamaCloudRate[]): Pars
   }));
 }
 
+const MIN_RATES_THRESHOLD = 5;
+
 async function runLlamaCloudPricingPass(params: LoanParameters): Promise<PricingResult> {
   const ltv = (params.loanAmount / params.propertyValue) * 100;
   
@@ -349,8 +351,13 @@ async function runLlamaCloudPricingPass(params: LoanParameters): Promise<Pricing
     loanTerm: params.loanTerm,
   });
   
-  if (!llamaResult.success || llamaResult.rates.length === 0) {
-    console.log("[PRICING] LlamaCloud query failed or returned no rates, falling back to local parsing");
+  if (!llamaResult.success) {
+    console.log("[PRICING] LlamaCloud query failed, falling back to local parsing");
+    return runLocalPricingPass(params);
+  }
+  
+  if (llamaResult.rates.length < MIN_RATES_THRESHOLD) {
+    console.log(`[PRICING] LlamaCloud returned only ${llamaResult.rates.length} rates (below threshold of ${MIN_RATES_THRESHOLD}), falling back to local parsing`);
     return runLocalPricingPass(params);
   }
   
