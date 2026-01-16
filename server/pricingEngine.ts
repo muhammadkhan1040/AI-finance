@@ -171,6 +171,18 @@ function getSortedRateOptions(
     filteredRates = allForTerm;
   }
   
+  // Deduplicate rates - keep BEST price (highest wholesale) for each rate
+  // This handles cases where we have both Freddie Mac and Fannie Mae prices
+  const rateMap = new Map<number, ParsedRate>();
+  for (const r of filteredRates) {
+    const existing = rateMap.get(r.rate);
+    if (!existing || r.price15Day > existing.price15Day) {
+      rateMap.set(r.rate, r);
+    }
+  }
+  filteredRates = Array.from(rateMap.values());
+  console.log(`[PRICING] After deduplication (best price per rate): ${filteredRates.length} unique rates`);
+  
   // Calculate customer points using lender pricing formula:
   // Points = (100 - Wholesale) + LLPAs + Compensation
   // Where:

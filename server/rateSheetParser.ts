@@ -133,17 +133,31 @@ function parseRocketSheet(workbook: XLSX.WorkBook): ParsedRate[] {
 function parseELendSheet(workbook: XLSX.WorkBook): ParsedRate[] {
   const rates: ParsedRate[] = [];
   
+  // Parse FHA and VA from GNMA tab per E Lend guide
   const gnmaSheet = workbook.Sheets['GNMA'];
   if (gnmaSheet) {
     const jsonData = XLSX.utils.sheet_to_json(gnmaSheet, { header: 1 }) as any[][];
     console.log(`[PARSER] E Lend GNMA has ${jsonData.length} rows`);
     
-    const gnmaRanges: CellRange[] = [
+    // FHA rates per guide:
+    // FHA 30yr: A8:E34 (rows 7-33, cols A-E)
+    // FHA 25yr: K8:O34 (rows 7-33, cols K-O)
+    // FHA 15yr: A36:E62 (rows 35-61, cols A-E)
+    // FHA 10yr: K36:O62 (rows 35-61, cols K-O)
+    const fhaRanges: CellRange[] = [
       { startRow: 7, endRow: 33, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '30yr', loanType: 'fha' },
-      { startRow: 7, endRow: 33, rateCol: colToIndex('F'), price15Col: colToIndex('G'), price30Col: colToIndex('H'), price45Col: colToIndex('I'), loanTerm: '30yr', loanType: 'fha' },
       { startRow: 7, endRow: 33, rateCol: colToIndex('K'), price15Col: colToIndex('L'), price30Col: colToIndex('M'), price45Col: colToIndex('N'), loanTerm: '25yr', loanType: 'fha' },
       { startRow: 35, endRow: 61, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '15yr', loanType: 'fha' },
       { startRow: 35, endRow: 61, rateCol: colToIndex('K'), price15Col: colToIndex('L'), price30Col: colToIndex('M'), price45Col: colToIndex('N'), loanTerm: '10yr', loanType: 'fha' },
+    ];
+    
+    // VA rates per guide:
+    // VA 30yr: A120:E146 (rows 119-145)
+    // VA 25yr: K120:O146 (rows 119-145)
+    // VA 20yr: U120:Y146 (rows 119-145)
+    // VA 15yr: A148:E174 (rows 147-173)
+    // VA 10yr: K148:O174 (rows 147-173)
+    const vaRanges: CellRange[] = [
       { startRow: 119, endRow: 145, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '30yr', loanType: 'va' },
       { startRow: 119, endRow: 145, rateCol: colToIndex('K'), price15Col: colToIndex('L'), price30Col: colToIndex('M'), price45Col: colToIndex('N'), loanTerm: '25yr', loanType: 'va' },
       { startRow: 119, endRow: 145, rateCol: colToIndex('U'), price15Col: colToIndex('V'), price30Col: colToIndex('W'), price45Col: colToIndex('X'), loanTerm: '20yr', loanType: 'va' },
@@ -151,29 +165,49 @@ function parseELendSheet(workbook: XLSX.WorkBook): ParsedRate[] {
       { startRow: 147, endRow: 173, rateCol: colToIndex('K'), price15Col: colToIndex('L'), price30Col: colToIndex('M'), price45Col: colToIndex('N'), loanTerm: '10yr', loanType: 'va' },
     ];
     
-    for (const range of gnmaRanges) {
+    for (const range of fhaRanges) {
+      parseRatesFromRange(jsonData, range, rates);
+    }
+    for (const range of vaRanges) {
       parseRatesFromRange(jsonData, range, rates);
     }
   }
   
+  // Parse Conventional from FHLMC-FNMA tab per E Lend guide
+  // Parse BOTH Freddie Mac (FHLMC) and Fannie Mae (FNMA) grids
+  // The pricing engine will pick the best price for each rate
   const conventionalSheet = workbook.Sheets['FHLMC-FNMA'];
   if (conventionalSheet) {
     const jsonData = XLSX.utils.sheet_to_json(conventionalSheet, { header: 1 }) as any[][];
     console.log(`[PARSER] E Lend FHLMC-FNMA has ${jsonData.length} rows`);
     
-    const conventionalRanges: CellRange[] = [
+    // Freddie Mac (FHLMC) grids per guide:
+    // 30-25yr Freddie Mac: A8:E33 (rows 7-32, cols A-E)
+    // 20yr Freddie Mac: U8:Y33 (rows 7-32, cols U-Y)
+    // 15yr Freddie Mac: F36:J61 (rows 35-60, cols F-J)
+    const freddieMacRanges: CellRange[] = [
       { startRow: 7, endRow: 32, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '30yr', loanType: 'conventional' },
-      { startRow: 7, endRow: 32, rateCol: colToIndex('F'), price15Col: colToIndex('G'), price30Col: colToIndex('H'), price45Col: colToIndex('I'), loanTerm: '30yr', loanType: 'conventional' },
       { startRow: 7, endRow: 32, rateCol: colToIndex('U'), price15Col: colToIndex('V'), price30Col: colToIndex('W'), price45Col: colToIndex('X'), loanTerm: '20yr', loanType: 'conventional' },
       { startRow: 35, endRow: 60, rateCol: colToIndex('F'), price15Col: colToIndex('G'), price30Col: colToIndex('H'), price45Col: colToIndex('I'), loanTerm: '15yr', loanType: 'conventional' },
-      { startRow: 63, endRow: 88, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '30yr', loanType: 'conventional' },
-      { startRow: 63, endRow: 88, rateCol: colToIndex('F'), price15Col: colToIndex('G'), price30Col: colToIndex('H'), price45Col: colToIndex('I'), loanTerm: '30yr', loanType: 'conventional' },
-      { startRow: 63, endRow: 88, rateCol: colToIndex('U'), price15Col: colToIndex('V'), price30Col: colToIndex('W'), price45Col: colToIndex('X'), loanTerm: '20yr', loanType: 'conventional' },
-      { startRow: 91, endRow: 116, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '15yr', loanType: 'conventional' },
-      { startRow: 91, endRow: 116, rateCol: colToIndex('F'), price15Col: colToIndex('G'), price30Col: colToIndex('H'), price45Col: colToIndex('I'), loanTerm: '15yr', loanType: 'conventional' },
     ];
     
-    for (const range of conventionalRanges) {
+    // Fannie Mae (FNMA) grids per guide:
+    // 30-25yr Fannie Mae: A64:E89 (rows 63-88, cols A-E)
+    // 20yr Fannie Mae: U64:Y89 (rows 63-88, cols U-Y)
+    // 15yr Fannie Mae: A92:E117 (rows 91-116, cols A-E)
+    const fannieMaeRanges: CellRange[] = [
+      { startRow: 63, endRow: 88, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '30yr', loanType: 'conventional' },
+      { startRow: 63, endRow: 88, rateCol: colToIndex('U'), price15Col: colToIndex('V'), price30Col: colToIndex('W'), price45Col: colToIndex('X'), loanTerm: '20yr', loanType: 'conventional' },
+      { startRow: 91, endRow: 116, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '15yr', loanType: 'conventional' },
+    ];
+    
+    // Parse both grids - pricing engine will select best price per rate
+    console.log(`[PARSER] Parsing Freddie Mac conventional grids`);
+    for (const range of freddieMacRanges) {
+      parseRatesFromRange(jsonData, range, rates);
+    }
+    console.log(`[PARSER] Parsing Fannie Mae conventional grids`);
+    for (const range of fannieMaeRanges) {
       parseRatesFromRange(jsonData, range, rates);
     }
   }
