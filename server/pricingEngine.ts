@@ -37,7 +37,76 @@ export interface PricingResult {
 }
 
 // Lender margin (internal only - not shown to customer)
-const LENDER_MARGIN = 2.25;
+const LENDER_MARGIN = 2.50;
+
+// LLPA (Loan-Level Price Adjustments) lookup based on FICO, LTV, and property type
+function lookupLLPAs(params: LoanParameters): number {
+  let adjustment = 0;
+  const ltv = (params.loanAmount / params.propertyValue) * 100;
+  
+  // Credit score adjustments (based on typical Fannie Mae LLPAs)
+  switch (params.creditScore) {
+    case "excellent": // 740+
+      if (ltv <= 60) adjustment += 0;
+      else if (ltv <= 75) adjustment += 0.25;
+      else if (ltv <= 80) adjustment += 0.25;
+      else if (ltv <= 85) adjustment += 0.25;
+      else if (ltv <= 90) adjustment += 0.50;
+      else adjustment += 0.75;
+      break;
+    case "good": // 700-739
+      if (ltv <= 60) adjustment += 0.25;
+      else if (ltv <= 75) adjustment += 0.50;
+      else if (ltv <= 80) adjustment += 0.75;
+      else if (ltv <= 85) adjustment += 1.00;
+      else if (ltv <= 90) adjustment += 1.25;
+      else adjustment += 1.50;
+      break;
+    case "fair": // 660-699
+      if (ltv <= 60) adjustment += 0.75;
+      else if (ltv <= 75) adjustment += 1.25;
+      else if (ltv <= 80) adjustment += 1.75;
+      else if (ltv <= 85) adjustment += 2.25;
+      else if (ltv <= 90) adjustment += 2.75;
+      else adjustment += 3.25;
+      break;
+    case "poor": // Below 660
+      if (ltv <= 60) adjustment += 1.50;
+      else if (ltv <= 75) adjustment += 2.00;
+      else if (ltv <= 80) adjustment += 2.75;
+      else if (ltv <= 85) adjustment += 3.25;
+      else if (ltv <= 90) adjustment += 3.50;
+      else adjustment += 3.75;
+      break;
+  }
+  
+  // Property type adjustments
+  switch (params.propertyType) {
+    case "condo":
+      adjustment += 0.75;
+      break;
+    case "multi-family":
+    case "2-4 unit":
+      adjustment += 1.00;
+      break;
+    case "manufactured":
+      adjustment += 1.50;
+      break;
+    case "investment":
+      adjustment += 1.75;
+      break;
+  }
+  
+  // Loan purpose adjustments
+  if (params.loanPurpose === "refinance-cashout") {
+    adjustment += 0.375;
+  }
+  
+  // Negative adjustment = hits to pricing (subtracts from price)
+  // We return negative so when added to target, it lowers the target
+  console.log(`[PRICING] LLPA Adjustments: ${adjustment.toFixed(3)} (Credit: ${params.creditScore}, LTV: ${ltv.toFixed(1)}%, Property: ${params.propertyType})`);
+  return -adjustment;
+}
 
 function calculateMonthlyPayment(principal: number, annualRate: number, termYears: number): number {
   const monthlyRate = annualRate / 100 / 12;
@@ -79,7 +148,7 @@ interface RateOption {
   isCredit: boolean;
 }
 
-// Get sorted rate options from rate sheet, using raw prices
+// Get sorted rate options from rate sheet, using Target Price logic
 function getSortedRateOptions(
   rates: ParsedRate[],
   params: LoanParameters
@@ -103,50 +172,60 @@ function getSortedRateOptions(
     filteredRates = allForTerm;
   }
   
+  // Calculate Target Par Price using margin and LLPAs
+  const llpaAdjustments = lookupLLPAs(params);
+  const targetParPrice = 100 + LENDER_MARGIN + llpaAdjustments;
+  console.log(`[PRICING] Target Par Price: ${targetParPrice.toFixed(3)} (100 + ${LENDER_MARGIN} margin + ${llpaAdjustments.toFixed(3)} LLPAs)`);
+  
   // Sort by rate (ascending - lowest rate first)
   const sortedRates = [...filteredRates].sort((a, b) => a.rate - b.rate);
   
   // Log all rates for debugging
   console.log(`[PRICING] All rates sorted by rate:`);
   sortedRates.forEach(r => {
-    const pointsFromPar = 100 - r.price15Day;
-    const isCredit = pointsFromPar < 0;
-    console.log(`  Rate ${r.rate}% -> Price ${r.price15Day.toFixed(3)} -> ${isCredit ? 'Credit' : 'Points'}: ${Math.abs(pointsFromPar).toFixed(3)}%`);
+    const wholesalePrice = r.price15Day; // Using 15-day lock
+    const points = targetParPrice - wholesalePrice;
+    const isCredit = points < 0;
+    console.log(`  Rate ${r.rate}% -> Wholesale ${wholesalePrice.toFixed(3)} -> Target ${targetParPrice.toFixed(3)} -> ${isCredit ? 'Credit' : 'Points'}: ${Math.abs(points).toFixed(3)}%`);
   });
   
-  // Convert to RateOptions with calculated points/credits
+  // Convert to RateOptions with calculated points/credits using Target Price logic
+  // Points = Target Par Price - Wholesale Price
+  // If positive: customer pays points
+  // If negative: customer receives credit
   return sortedRates.map(r => {
-    const pointsFromPar = 100 - r.price15Day;
-    const isCredit = pointsFromPar < 0;
-    const pointsPercent = Math.abs(pointsFromPar);
+    const wholesalePrice = r.price15Day; // Using 15-day lock per requirement
+    const points = targetParPrice - wholesalePrice;
+    const isCredit = points < 0;
+    const pointsPercent = Math.abs(points);
     const pointsDollar = params.loanAmount * (pointsPercent / 100);
     
     return {
       rate: r.rate,
-      price: r.price15Day,
-      pointsPercent,
-      pointsDollar,
+      price: wholesalePrice,
+      pointsPercent: Math.round(pointsPercent * 1000) / 1000,
+      pointsDollar: Math.round(pointsDollar * 100) / 100,
       isCredit,
     };
   });
 }
 
-// Find the rate closest to par (price = 100)
+// Find the "True Par" rate - closest to 0 points after Target Price calculation
 function findParRateIndex(options: RateOption[]): number {
   if (options.length === 0) return -1;
   
   let parIndex = 0;
-  let minDiff = Math.abs(options[0].price - 100);
+  let minPoints = options[0].pointsPercent;
   
   for (let i = 1; i < options.length; i++) {
-    const diff = Math.abs(options[i].price - 100);
-    if (diff < minDiff) {
-      minDiff = diff;
+    if (options[i].pointsPercent < minPoints) {
+      minPoints = options[i].pointsPercent;
       parIndex = i;
     }
   }
   
-  console.log(`[PRICING] Par rate index: ${parIndex}, rate: ${options[parIndex].rate}%, price: ${options[parIndex].price.toFixed(3)}`);
+  const parOption = options[parIndex];
+  console.log(`[PRICING] True Par rate index: ${parIndex}, rate: ${parOption.rate}%, points: ${parOption.isCredit ? '-' : ''}${parOption.pointsPercent.toFixed(3)}%`);
   return parIndex;
 }
 
