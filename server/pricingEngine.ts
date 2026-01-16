@@ -102,10 +102,9 @@ function lookupLLPAs(params: LoanParameters): number {
     adjustment += 0.375;
   }
   
-  // Negative adjustment = hits to pricing (subtracts from price)
-  // We return negative so when added to target, it lowers the target
-  console.log(`[PRICING] LLPA Adjustments: ${adjustment.toFixed(3)} (Credit: ${params.creditScore}, LTV: ${ltv.toFixed(1)}%, Property: ${params.propertyType})`);
-  return -adjustment;
+  // LLPA adjustments are ADDED to customer points (positive = customer pays more)
+  console.log(`[PRICING] LLPA Adjustments: +${adjustment.toFixed(3)} (Credit: ${params.creditScore}, LTV: ${ltv.toFixed(1)}%, Property: ${params.propertyType})`);
+  return adjustment;
 }
 
 function calculateMonthlyPayment(principal: number, annualRate: number, termYears: number): number {
@@ -172,10 +171,14 @@ function getSortedRateOptions(
     filteredRates = allForTerm;
   }
   
-  // Calculate Target Par Price using margin and LLPAs
+  // Calculate customer points using lender pricing formula:
+  // Points = (100 - Wholesale) + LLPAs + Compensation
+  // Where:
+  //   (100 - Wholesale) = raw price-to-points conversion
+  //   LLPAs = FICO/LTV/Property adjustments (positive = customer pays more)
+  //   Compensation = broker margin
   const llpaAdjustments = lookupLLPAs(params);
-  const targetParPrice = 100 + LENDER_MARGIN + llpaAdjustments;
-  console.log(`[PRICING] Target Par Price: ${targetParPrice.toFixed(3)} (100 + ${LENDER_MARGIN} margin + ${llpaAdjustments.toFixed(3)} LLPAs)`);
+  console.log(`[PRICING] Formula: Points = (100 - Wholesale) + ${llpaAdjustments.toFixed(3)} LLPAs + ${LENDER_MARGIN} Comp`);
   
   // Sort by rate (ascending - lowest rate first)
   const sortedRates = [...filteredRates].sort((a, b) => a.rate - b.rate);
@@ -184,20 +187,22 @@ function getSortedRateOptions(
   console.log(`[PRICING] All rates sorted by rate:`);
   sortedRates.forEach(r => {
     const wholesalePrice = r.price15Day; // Using 15-day lock
-    const points = targetParPrice - wholesalePrice;
-    const isCredit = points < 0;
-    console.log(`  Rate ${r.rate}% -> Wholesale ${wholesalePrice.toFixed(3)} -> Target ${targetParPrice.toFixed(3)} -> ${isCredit ? 'Credit' : 'Points'}: ${Math.abs(points).toFixed(3)}%`);
+    const basePoints = 100 - wholesalePrice; // Negative = credit from lender
+    const customerPoints = basePoints + llpaAdjustments + LENDER_MARGIN;
+    const isCredit = customerPoints < 0;
+    console.log(`  Rate ${r.rate}% -> Wholesale ${wholesalePrice.toFixed(3)} -> Base ${basePoints.toFixed(3)} + LLPAs ${llpaAdjustments.toFixed(3)} + Comp ${LENDER_MARGIN} = ${isCredit ? 'Credit' : 'Points'}: ${Math.abs(customerPoints).toFixed(3)}%`);
   });
   
-  // Convert to RateOptions with calculated points/credits using Target Price logic
-  // Points = Target Par Price - Wholesale Price
-  // If positive: customer pays points
-  // If negative: customer receives credit
+  // Convert to RateOptions with calculated points/credits
+  // Points = (100 - Wholesale) + LLPAs + LENDER_MARGIN
+  // Positive = customer pays points
+  // Negative = customer receives credit
   return sortedRates.map(r => {
     const wholesalePrice = r.price15Day; // Using 15-day lock per requirement
-    const points = targetParPrice - wholesalePrice;
-    const isCredit = points < 0;
-    const pointsPercent = Math.abs(points);
+    const basePoints = 100 - wholesalePrice;
+    const customerPoints = basePoints + llpaAdjustments + LENDER_MARGIN;
+    const isCredit = customerPoints < 0;
+    const pointsPercent = Math.abs(customerPoints);
     const pointsDollar = params.loanAmount * (pointsPercent / 100);
     
     return {
