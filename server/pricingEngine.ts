@@ -302,9 +302,46 @@ function calculateTotalAdjustments(
       }
     }
 
-    // State adjustments would go here if we had state-specific grids
+    // State adjustments - handles both simple state grids and State x LTV matrices
     if (grid.type === 'state' && params.state) {
-      // TODO: Implement state-specific lookup
+      // 1. Find row matching the state (e.g. "CA", "NY", "FL")
+      let rowIndex = -1;
+      for (let i = 0; i < grid.axes.y.length; i++) {
+        const rowLabel = grid.axes.y[i].toUpperCase();
+        // Check for exact match or list match (e.g. "CT, DC, DE, IL")
+        const statesInRow = rowLabel.split(/[,/]\s*/).map(s => s.trim());
+        if (statesInRow.includes(params.state.toUpperCase())) {
+          rowIndex = i;
+          break;
+        }
+      }
+
+      if (rowIndex !== -1) {
+        // 2. Find column (usually just one value column, or LTV based)
+        // Default to column 0 if no LTV headers, otherwise lookup LTV
+        let colIndex = 0;
+        if (grid.axes.x.length > 1 && grid.axes.x.some(x => x.includes('%') || x.toLowerCase().includes('ltv'))) {
+          // Reuse LTV lookup logic if this is a State x LTV grid
+          for (let i = 0; i < grid.axes.x.length; i++) {
+            const range = parseLtvRange(grid.axes.x[i]);
+            if (range && ltv >= range.min && ltv <= range.max) {
+              colIndex = i;
+              break;
+            }
+          }
+        }
+
+        const value = grid.data[rowIndex]?.[colIndex];
+        if (typeof value === 'number') {
+          totalAdj += value;
+          breakdown.push({
+            gridName: grid.name,
+            lookupKey: `State ${params.state.toUpperCase()}`,
+            adjustment: value,
+          });
+          console.log(`[PRICING] ${grid.name}: State ${params.state.toUpperCase()} = ${value}`);
+        }
+      }
     }
   }
 
