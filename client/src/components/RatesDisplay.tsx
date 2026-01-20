@@ -1,10 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { type Rate, type Lead } from "@shared/schema";
-import { Check, ArrowRight, DollarSign, Calculator, Info, ChevronDown, ChevronUp, Search, ShieldCheck, User, Star, Home } from "lucide-react";
+import { type Rate, type Lead, type AdjustmentBreakdown } from "@shared/schema";
+import { Check, ArrowRight, DollarSign, Calculator, Info, ChevronDown, ChevronUp, Search, ShieldCheck, User, Star, Home, Eye, EyeOff } from "lucide-react";
 import brokerPhoto from "@assets/profile_picture_optimized.jpg";
 import atozLogo from "@assets/offical_logo_color_correct_normal_backgoorund_1767722280788.png";
 import { GlassButton } from "./ui/glass-button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 const GOOGLE_REVIEWS_URL = "https://www.google.com/search?q=a+to+z+home+loans#lrd=0x872b735c4e416fcf:0xed69e4c2f4ef7bdb,1";
@@ -42,6 +47,65 @@ const creditScoreLabels: Record<string, string> = {
   fair: "650-699",
   poor: "300-649",
 };
+
+// Group rates by scenario type: Par, Buydown, Credit
+interface ScenarioGroup {
+  type: 'buydown' | 'par' | 'credit';
+  label: string;
+  description: string;
+  rates: Rate[];
+  highlight: boolean;
+  color: string;
+}
+
+function groupRatesByScenario(rates: Rate[]): ScenarioGroup[] {
+  const buydownRates = rates.filter(r =>
+    r.note?.toLowerCase().includes('buydown') ||
+    r.note?.toLowerCase().includes('pay point') ||
+    r.note?.toLowerCase().includes('lower rate') ||
+    (r.lenderFee && r.lenderFee > 0 && !r.lenderCredit)
+  );
+
+  const creditRates = rates.filter(r =>
+    r.note?.toLowerCase().includes('credit') ||
+    r.note?.toLowerCase().includes('rebate') ||
+    (r.lenderCredit && r.lenderCredit > 0)
+  );
+
+  const parRates = rates.filter(r =>
+    r.note?.toLowerCase().includes('par') ||
+    r.note?.toLowerCase().includes('no point') ||
+    r.note?.toLowerCase().includes('no cost') ||
+    (!r.lenderFee && !r.lenderCredit && !buydownRates.includes(r) && !creditRates.includes(r))
+  );
+
+  return [
+    {
+      type: 'buydown' as const,
+      label: 'Pay Points',
+      description: 'Lower rate by paying upfront points',
+      rates: buydownRates.slice(0, 2),
+      highlight: false,
+      color: 'from-orange-500/20 to-orange-600/10 border-orange-500/30',
+    },
+    {
+      type: 'par' as const,
+      label: 'Par Rate',
+      description: 'No points, no credits - standard pricing',
+      rates: parRates.slice(0, 2),
+      highlight: true,
+      color: 'from-blue-500/20 to-blue-600/10 border-blue-500/30',
+    },
+    {
+      type: 'credit' as const,
+      label: 'Lender Credit',
+      description: 'Higher rate with lender credit to reduce closing costs',
+      rates: creditRates.slice(0, 2),
+      highlight: false,
+      color: 'from-green-500/20 to-green-600/10 border-green-500/30',
+    },
+  ].filter(group => group.rates.length > 0);
+}
 
 interface ConfirmationViewProps {
   rate: Rate;
@@ -114,7 +178,7 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
         <div className="glass-card rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="text-xs font-bold uppercase tracking-widest text-blue-300">Your Details</div>
-            <button 
+            <button
               onClick={onReset}
               className="text-xs text-[#5cffb5] hover:text-white transition-colors underline underline-offset-4 font-bold"
             >
@@ -177,8 +241,8 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
         <p className="text-blue-200/70 max-w-md mx-auto">
           Finish your application online today and we'll waive all processing and underwriting fees.
         </p>
-        <GlassButton 
-          className="w-full max-w-sm h-14 text-lg font-bold shadow-[0_0_25px_rgba(92,255,181,0.3)]" 
+        <GlassButton
+          className="w-full max-w-sm h-14 text-lg font-bold shadow-[0_0_25px_rgba(92,255,181,0.3)]"
           variant="primary"
           data-testid="button-apply-online"
           asChild
@@ -192,7 +256,7 @@ export function ConfirmationView({ rate, lead, onReset }: ConfirmationViewProps)
       </div>
 
       <div className="text-center">
-        <button 
+        <button
           onClick={onReset}
           className="text-blue-300 hover:text-white underline underline-offset-4 text-sm transition-colors"
         >
@@ -522,7 +586,7 @@ function StickyBrokerBar() {
               <div className="text-white/80 text-xs">A to Z Home Loans</div>
               <div className="text-[10px] text-blue-200/50">NMLS #1388911</div>
               <div className="text-[10px] text-blue-200/50">NMLS #2449185</div>
-              <a 
+              <a
                 href={GOOGLE_REVIEWS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -575,15 +639,169 @@ function DisclaimerSection() {
         <p><sup>4</sup> Processing fee to cover the cost of processing a mortgage application.</p>
         <p className="pt-2 border-t border-white/5">All values are estimates based on information provided by the lender. Taxes and insurance are NOT included. Additional fees may apply. For an exact quote, contact the lender.</p>
       </div>
-      
+
       <div className="flex items-center justify-center gap-6 pt-4">
-        <img 
-          src={atozLogo} 
-          alt="A to Z Home Loans" 
+        <img
+          src={atozLogo}
+          alt="A to Z Home Loans"
           className="h-12 object-contain"
         />
       </div>
     </div>
+  );
+}
+
+// NEW: "Show Your Work" component to display adjustment breakdown
+interface ShowYourWorkProps {
+  breakdown: AdjustmentBreakdown[];
+  netPrice?: number;
+}
+
+function ShowYourWork({ breakdown, netPrice }: ShowYourWorkProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!breakdown || breakdown.length === 0) {
+    return null;
+  }
+
+  const totalAdjustment = breakdown.reduce((sum, item) => sum + item.adjustment, 0);
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <button className="flex items-center gap-2 text-xs text-blue-300/70 hover:text-blue-300 transition-colors mt-2">
+          {isOpen ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+          <span className="underline underline-offset-2">
+            {isOpen ? 'Hide Calculation' : 'Show Your Work'}
+          </span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mt-3 p-3 rounded-lg bg-black/30 border border-white/10 text-xs space-y-2"
+        >
+          <div className="text-blue-200/60 font-bold uppercase tracking-wider text-[10px] mb-2">
+            LLPA Adjustment Breakdown
+          </div>
+          {breakdown.map((item, idx) => (
+            <div key={idx} className="flex justify-between items-center">
+              <div className="text-blue-200/80">
+                <span className="text-blue-300">{item.gridName}</span>
+                <span className="text-blue-200/50 ml-2">({item.lookupKey})</span>
+              </div>
+              <span className={item.adjustment < 0 ? "text-red-400 font-mono" : "text-green-400 font-mono"}>
+                {item.adjustment >= 0 ? '+' : ''}{item.adjustment.toFixed(3)}
+              </span>
+            </div>
+          ))}
+          <div className="pt-2 mt-2 border-t border-white/10 flex justify-between items-center font-bold">
+            <span className="text-white">Total Adjustments</span>
+            <span className={totalAdjustment < 0 ? "text-red-400 font-mono" : "text-green-400 font-mono"}>
+              {totalAdjustment >= 0 ? '+' : ''}{totalAdjustment.toFixed(3)}
+            </span>
+          </div>
+          {netPrice !== undefined && (
+            <div className="flex justify-between items-center text-white/70">
+              <span>Net Price</span>
+              <span className="font-mono">{netPrice.toFixed(3)}</span>
+            </div>
+          )}
+        </motion.div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+// NEW: Scenario Card component for the 3-column layout
+interface ScenarioCardProps {
+  group: ScenarioGroup;
+  lead: Lead;
+  onSelect: (rate: Rate) => void;
+}
+
+function ScenarioCard({ group, lead, onSelect }: ScenarioCardProps) {
+  const bestRate = group.rates[0];
+  if (!bestRate) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`glass-card rounded-2xl p-5 relative transition-all duration-300 ${group.highlight
+        ? 'ring-2 ring-blue-500/50 shadow-[0_0_30px_rgba(59,130,246,0.2)]'
+        : ''
+        }`}
+    >
+      {group.highlight && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[10px] font-bold py-1 px-3 rounded-full shadow-lg uppercase tracking-wider">
+          Recommended
+        </div>
+      )}
+
+      <div className="text-center mb-4">
+        <h3 className="text-lg font-bold text-white mb-1">{group.label}</h3>
+        <p className="text-xs text-blue-200/60">{group.description}</p>
+      </div>
+
+      <div className="text-center mb-4">
+        <div className="text-4xl font-bold text-white mb-1">
+          {bestRate.rate.toFixed(3)}%
+        </div>
+        <div className="text-xs text-blue-200/50">
+          APR {bestRate.apr.toFixed(3)}%
+        </div>
+      </div>
+
+      <div className="space-y-2 mb-4">
+        <div className="flex justify-between text-sm">
+          <span className="text-blue-200/60">Monthly P&I</span>
+          <span className="text-white font-semibold">${bestRate.monthlyPayment.toLocaleString()}</span>
+        </div>
+
+        {bestRate.lenderFee && bestRate.lenderFee > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-orange-300/80">Points Cost</span>
+            <span className="text-orange-300 font-semibold">+${bestRate.lenderFee.toLocaleString()}</span>
+          </div>
+        )}
+
+        {bestRate.lenderCredit && bestRate.lenderCredit > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-green-300/80">Lender Credit</span>
+            <span className="text-green-300 font-semibold">-${bestRate.lenderCredit.toLocaleString()}</span>
+          </div>
+        )}
+
+        {!bestRate.lenderFee && !bestRate.lenderCredit && (
+          <div className="flex justify-between text-sm">
+            <span className="text-blue-200/60">Cost/Credit</span>
+            <span className="text-white font-semibold">$0</span>
+          </div>
+        )}
+      </div>
+
+      <GlassButton
+        onClick={() => onSelect(bestRate)}
+        className="w-full"
+        variant={group.highlight ? "primary" : "secondary"}
+        data-testid={`button-select-${group.type}`}
+      >
+        Select This Option
+        <ArrowRight className="w-4 h-4 ml-2" />
+      </GlassButton>
+
+      {/* Show Your Work section */}
+      {bestRate.adjustmentBreakdown && bestRate.adjustmentBreakdown.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-white/10">
+          <ShowYourWork
+            breakdown={bestRate.adjustmentBreakdown}
+            netPrice={bestRate.netPrice}
+          />
+        </div>
+      )}
+    </motion.div>
   );
 }
 
@@ -599,6 +817,10 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
   const [isUpdating, setIsUpdating] = useState(false);
   const [rates, setRates] = useState<Rate[]>(initialRates);
   const [lead, setLead] = useState<Lead>(initialLead);
+  const [viewMode, setViewMode] = useState<'scenarios' | 'list'>('scenarios');
+
+  // Group rates by scenario type
+  const scenarioGroups = useMemo(() => groupRatesByScenario(rates), [rates]);
 
   const handleUpdateRates = async (updatedLead: Lead) => {
     setIsUpdating(true);
@@ -638,10 +860,8 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
     return <ConfirmationView rate={selectedRate} lead={lead} onReset={() => setSelectedRate(null)} />;
   }
 
-  const bestRate = rates.reduce((prev, current) => (prev.rate < current.rate ? prev : current), rates[0]);
-
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-6 animate-in fade-in duration-700">
+    <div className="w-full max-w-4xl mx-auto space-y-6 animate-in fade-in duration-700">
       <div className="text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 border border-green-500/40 text-green-300 mb-4 backdrop-blur-sm">
           <Check className="w-4 h-4" />
@@ -653,13 +873,13 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
         <p className="text-lg text-blue-200/70 max-w-xl mx-auto">
           Based on today's market data, here are the best options we found for your scenario.
         </p>
-        
+
         <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs text-blue-200/60">
           <Info className="w-3 h-3" />
           <span>Compare to the national average:</span>
-          <a 
-            href="https://www.freddiemac.com/pmms" 
-            target="_blank" 
+          <a
+            href="https://www.freddiemac.com/pmms"
+            target="_blank"
             rel="noopener noreferrer"
             className="text-[#5cffb5] hover:underline font-medium"
             data-testid="link-freddie-mac-pmms"
@@ -677,109 +897,153 @@ export function RatesDisplay({ rates: initialRates, lead: initialLead, onReset }
         isUpdating={isUpdating}
       />
 
-      <div className="grid gap-3">
-        {rates.map((rate, index) => {
-          const isBestValue = index === 0;
-
-          return (
-            <motion.div 
-              key={index}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className={`glass-card rounded-xl p-3 md:p-4 relative group hover-elevate transition-all duration-300 ${
-                isBestValue ? 'ring-2 ring-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.15)]' : ''
-              }`}
-            >
-              {isBestValue && (
-                <div className="absolute -top-2 left-4 bg-blue-500 text-white text-[9px] font-bold py-0.5 px-2 rounded-full shadow-lg z-20">
-                  BEST VALUE
-                </div>
-              )}
-              
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-blue-300 font-medium">{rate.lender}</span>
-                    {rate.note && (
-                      <span className="px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-blue-200/60 font-medium">{rate.note}</span>
-                    )}
-                    {rate.lenderFee && (
-                      <span className="text-[9px] text-red-400">+${rate.lenderFee.toLocaleString()}</span>
-                    )}
-                    {rate.lenderCredit && (
-                      <span className="text-[9px] text-green-400">-${rate.lenderCredit.toLocaleString()}</span>
-                    )}
-                  </div>
-                  <div className="flex items-baseline gap-2 mt-0.5">
-                    <span className="text-2xl md:text-3xl font-bold text-white">{rate.rate.toFixed(3)}%</span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="text-[10px] text-blue-200/50 border-b border-dotted border-blue-200/20 cursor-help">
-                            APR {rate.apr.toFixed(3)}%
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent className="bg-[#050818] border-blue-500/30 text-white p-3 space-y-2 max-w-xs">
-                          <div className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2 border-b border-white/10 pb-1">APR Breakdown</div>
-                          <div className="space-y-1 text-xs">
-                            <div className="flex justify-between gap-4">
-                              <span className="text-blue-200/60">Interest Rate:</span>
-                              <span className="text-white font-bold">{rate.rate.toFixed(3)}%</span>
-                            </div>
-                            <div className="flex justify-between gap-4">
-                              <span className="text-blue-200/60">Standard Costs:</span>
-                              <span className="text-blue-200">+0.150%</span>
-                            </div>
-                            {rate.lenderFee && (
-                              <div className="flex justify-between gap-4">
-                                <span className="text-red-300">Buydown:</span>
-                                <span className="text-red-300">+{((rate.lenderFee / (lead.loanAmount || 1) / 30) * 100).toFixed(3)}%</span>
-                              </div>
-                            )}
-                            {rate.lenderCredit && (
-                              <div className="flex justify-between gap-4">
-                                <span className="text-green-300">Credit:</span>
-                                <span className="text-green-300">-{((rate.lenderCredit / (lead.loanAmount || 1) / 30) * 100).toFixed(3)}%</span>
-                              </div>
-                            )}
-                            <div className="flex justify-between gap-4 pt-1 border-t border-white/10 font-bold">
-                              <span className="text-[#5cffb5]">Total APR:</span>
-                              <span className="text-[#5cffb5]">{rate.apr.toFixed(3)}%</span>
-                            </div>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </div>
-
-                <div className="text-right flex-shrink-0">
-                  <div className="text-[10px] text-blue-200/50 uppercase tracking-wide">Monthly</div>
-                  <div className="text-lg md:text-xl font-bold text-white">
-                    ${rate.monthlyPayment.toLocaleString()}
-                  </div>
-                </div>
-
-                <GlassButton 
-                  className="flex-shrink-0" 
-                  variant={isBestValue ? "primary" : "secondary"}
-                  onClick={() => setSelectedRate(rate)}
-                  data-testid={`button-select-rate-${index}`}
-                >
-                  <span className="hidden sm:inline">Select</span>
-                  <ArrowRight className="w-4 h-4 sm:ml-1" />
-                </GlassButton>
-              </div>
-            </motion.div>
-          );
-        })}
+      {/* View Mode Toggle */}
+      <div className="flex justify-center gap-2">
+        <button
+          onClick={() => setViewMode('scenarios')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'scenarios'
+            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+            : 'text-blue-200/60 hover:text-white'
+            }`}
+        >
+          Compare Options
+        </button>
+        <button
+          onClick={() => setViewMode('list')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'list'
+            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+            : 'text-blue-200/60 hover:text-white'
+            }`}
+        >
+          View All Rates
+        </button>
       </div>
+
+      {viewMode === 'scenarios' ? (
+        /* 3-Column Scenario View */
+        <div className="grid md:grid-cols-3 gap-4">
+          {scenarioGroups.map((group) => (
+            <ScenarioCard
+              key={group.type}
+              group={group}
+              lead={lead}
+              onSelect={setSelectedRate}
+            />
+          ))}
+        </div>
+      ) : (
+        /* List View - All Rates */
+        <div className="grid gap-3">
+          {rates.map((rate, index) => {
+            const isBestValue = index === 0;
+
+            return (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className={`glass-card rounded-xl p-3 md:p-4 relative group hover-elevate transition-all duration-300 ${isBestValue ? 'ring-2 ring-blue-500/50 shadow-[0_0_20px_rgba(59,130,246,0.15)]' : ''
+                  }`}
+              >
+                {isBestValue && (
+                  <div className="absolute -top-2 left-4 bg-blue-500 text-white text-[9px] font-bold py-0.5 px-2 rounded-full shadow-lg z-20">
+                    BEST VALUE
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-blue-300 font-medium">{rate.lender}</span>
+                      {rate.note && (
+                        <span className="px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-blue-200/60 font-medium">{rate.note}</span>
+                      )}
+                      {rate.lenderFee && (
+                        <span className="text-[9px] text-red-400">+${rate.lenderFee.toLocaleString()}</span>
+                      )}
+                      {rate.lenderCredit && (
+                        <span className="text-[9px] text-green-400">-${rate.lenderCredit.toLocaleString()}</span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <span className="text-2xl md:text-3xl font-bold text-white">{rate.rate.toFixed(3)}%</span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-[10px] text-blue-200/50 border-b border-dotted border-blue-200/20 cursor-help">
+                              APR {rate.apr.toFixed(3)}%
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-[#050818] border-blue-500/30 text-white p-3 space-y-2 max-w-xs">
+                            <div className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2 border-b border-white/10 pb-1">APR Breakdown</div>
+                            <div className="space-y-1 text-xs">
+                              <div className="flex justify-between gap-4">
+                                <span className="text-blue-200/60">Interest Rate:</span>
+                                <span className="text-white font-bold">{rate.rate.toFixed(3)}%</span>
+                              </div>
+                              <div className="flex justify-between gap-4">
+                                <span className="text-blue-200/60">Standard Costs:</span>
+                                <span className="text-blue-200">+0.150%</span>
+                              </div>
+                              {rate.lenderFee && (
+                                <div className="flex justify-between gap-4">
+                                  <span className="text-red-300">Buydown:</span>
+                                  <span className="text-red-300">+{((rate.lenderFee / (lead.loanAmount || 1) / 30) * 100).toFixed(3)}%</span>
+                                </div>
+                              )}
+                              {rate.lenderCredit && (
+                                <div className="flex justify-between gap-4">
+                                  <span className="text-green-300">Credit:</span>
+                                  <span className="text-green-300">-{((rate.lenderCredit / (lead.loanAmount || 1) / 30) * 100).toFixed(3)}%</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between gap-4 pt-1 border-t border-white/10 font-bold">
+                                <span className="text-[#5cffb5]">Total APR:</span>
+                                <span className="text-[#5cffb5]">{rate.apr.toFixed(3)}%</span>
+                              </div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+
+                    {/* Show Your Work for list view */}
+                    {rate.adjustmentBreakdown && rate.adjustmentBreakdown.length > 0 && (
+                      <ShowYourWork
+                        breakdown={rate.adjustmentBreakdown}
+                        netPrice={rate.netPrice}
+                      />
+                    )}
+                  </div>
+
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-[10px] text-blue-200/50 uppercase tracking-wide">Monthly</div>
+                    <div className="text-lg md:text-xl font-bold text-white">
+                      ${rate.monthlyPayment.toLocaleString()}
+                    </div>
+                  </div>
+
+                  <GlassButton
+                    className="flex-shrink-0"
+                    variant={isBestValue ? "primary" : "secondary"}
+                    onClick={() => setSelectedRate(rate)}
+                    data-testid={`button-select-rate-${index}`}
+                  >
+                    <span className="hidden sm:inline">Select</span>
+                    <ArrowRight className="w-4 h-4 sm:ml-1" />
+                  </GlassButton>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
 
       <TrustIndicators />
 
       <div className="text-center mt-6">
-        <button 
+        <button
           onClick={onReset}
           className="text-blue-300 hover:text-white underline underline-offset-4 text-sm transition-colors"
         >

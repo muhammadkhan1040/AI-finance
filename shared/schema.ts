@@ -23,8 +23,8 @@ export const leads = pgTable("leads", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertLeadSchema = createInsertSchema(leads).omit({ 
-  id: true, 
+export const insertLeadSchema = createInsertSchema(leads).omit({
+  id: true,
   createdAt: true,
   quotedRates: true
 }).extend({
@@ -46,6 +46,42 @@ export type InsertLeadWithRates = z.infer<typeof insertLeadWithRatesSchema>;
 export type Lead = typeof leads.$inferSelect;
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 
+// NEW: Adjustment breakdown for "Show Your Work" feature
+export const adjustmentBreakdownSchema = z.object({
+  gridName: z.string(),
+  lookupKey: z.string(),
+  adjustment: z.number(),
+});
+
+export type AdjustmentBreakdown = z.infer<typeof adjustmentBreakdownSchema>;
+
+// NEW: Individual pricing scenario
+export const pricingScenarioSchema = z.object({
+  rate: z.number(),
+  apr: z.number(),
+  monthlyPayment: z.number(),
+  pointsPercent: z.number(),
+  pointsDollar: z.number(),
+  isCredit: z.boolean(),
+  scenarioLabel: z.string(),
+  netPrice: z.number(),
+  adjustmentBreakdown: z.array(adjustmentBreakdownSchema),
+});
+
+export type PricingScenario = z.infer<typeof pricingScenarioSchema>;
+
+// NEW: Lender quote with multiple scenarios
+export const lenderQuoteSchema = z.object({
+  lenderName: z.string(),
+  scenarios: z.array(pricingScenarioSchema),
+  basePrice: z.number(),
+  adjustedPrice: z.number(),
+  totalAdjustments: z.number(),
+});
+
+export type LenderQuote = z.infer<typeof lenderQuoteSchema>;
+
+// UPDATED: Rate schema with adjustment breakdown for backwards compatibility
 export const ratesSchema = z.object({
   rate: z.number(),
   apr: z.number(),
@@ -56,6 +92,8 @@ export const ratesSchema = z.object({
   lenderFee: z.number().optional(),
   lenderCredit: z.number().optional(),
   note: z.string().optional(),
+  netPrice: z.number().optional(),  // NEW: Net price for debugging
+  adjustmentBreakdown: z.array(adjustmentBreakdownSchema).optional(), // NEW: Show your work
 });
 
 export type Rate = z.infer<typeof ratesSchema>;

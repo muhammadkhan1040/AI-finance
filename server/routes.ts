@@ -332,6 +332,8 @@ export async function registerRoutes(
               lenderFee: scenario.isCredit ? undefined : scenario.pointsDollar > 0 ? Math.round(scenario.pointsDollar) : undefined,
               lenderCredit: scenario.isCredit ? Math.round(scenario.pointsDollar) : undefined,
               note: scenario.scenarioLabel,
+              netPrice: scenario.netPrice,  // NEW: Include net price for debugging
+              adjustmentBreakdown: scenario.adjustmentBreakdown,  // NEW: Include breakdown for "Show Your Work"
             });
           }
         }
