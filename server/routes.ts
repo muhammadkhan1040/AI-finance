@@ -11,11 +11,11 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
   // Admin credentials from environment (can be changed in Replit Secrets panel for recovery)
   const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
   const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-  
+
   if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
     console.warn("WARNING: ADMIN_USERNAME and ADMIN_PASSWORD secrets are not set. Admin login will be disabled.");
   }
@@ -35,10 +35,10 @@ export async function registerRoutes(
     if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
       return res.status(503).json({ message: "Admin login is not configured. Please set ADMIN_USERNAME and ADMIN_PASSWORD in Replit Secrets." });
     }
-    
+
     const { username, password } = req.body;
     const session = (req as any).session;
-    
+
     if (username.toLowerCase() === ADMIN_USERNAME.toLowerCase() && password === ADMIN_PASSWORD) {
       session.isAdmin = true;
       res.json({ success: true });
@@ -65,102 +65,8 @@ export async function registerRoutes(
     res.json({ isAdmin: !!session?.isAdmin });
   });
 
-  // Helper to generate mock rates based on credit score
-  function getMockRates(score: string, amount: number, term: string | undefined): Rate[] {
-    let baseRate = 6.5; 
-    
-    // Adjust base rate based on term
-    if (term === '15yr') baseRate = 5.880; // From APOR 15/20 Yr Fixed
-    else if (term === '10yr') baseRate = 5.750; // From APOR 10 Yr Fixed
-    else if (term === '20yr') baseRate = 5.880; // From APOR 15/20 Yr Fixed
-    else baseRate = 6.250; // Default 30 Yr Fixed APOR
-
-    // Underwriting fees from PRMG sheet (Page 1)
-    const underwritingFee = (term === 'dscr' || score.includes('Non-QM')) ? 1545 : 1245;
-    const processingFee = 895;
-
-    // Map new ranges to rate adjustments (Estimated from Agency Fannie Mae Pg.3)
-    if (score === '780+') baseRate -= 0.5;
-    else if (score === '760-780') baseRate -= 0.375;
-    else if (score === '740-759') baseRate -= 0.25;
-    else if (score === '720-739') baseRate -= 0.125;
-    else if (score === '700-719') baseRate += 0;
-    else if (score === '680-699') baseRate += 0.125;
-    else if (score === '640-679') baseRate += 0.25;
-    else if (score === '620-639') baseRate += 0.375;
-    else if (score === '601-619') baseRate += 0.5;
-    else if (score === '580-600') baseRate += 0.75;
-
-    // Adjust for DSCR (PRMG adds premium for Non-QM/DSCR - Pg 16/17)
-    if (term === 'dscr') baseRate += 0.75;
-
-    // finalRate is the base interest rate
-    const finalRate = Number(baseRate.toFixed(3));
-
-    // APR Calculation helper
-    const calculateApr = (r: number, f: number) => Number((r + (f / amount / 30) * 100 + 0.15).toFixed(3));
-
-    return [
-      {
-        lender: "PRMG (Standard)",
-        rate: finalRate,
-        apr: calculateApr(finalRate, processingFee + underwritingFee),
-        monthlyPayment: Math.round(amount * (finalRate / 100 / 12) / (1 - Math.pow(1 + finalRate / 100 / 12, -360))),
-        processingFee,
-        underwritingFee,
-        note: "Base pricing - No points"
-      },
-      {
-        lender: "UWM (1% Buydown)",
-        rate: Number((finalRate - 0.375).toFixed(3)),
-        apr: calculateApr(finalRate - 0.375, processingFee + underwritingFee + (amount * 0.01)),
-        monthlyPayment: Math.round(amount * ((finalRate - 0.375) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.375) / 100 / 12, -360))),
-        processingFee,
-        underwritingFee,
-        lenderFee: Math.round(amount * 0.01),
-        note: "1 Point Buy-down"
-      },
-      {
-        lender: "UWM (2% Buydown)",
-        rate: Number((finalRate - 0.75).toFixed(3)),
-        apr: calculateApr(finalRate - 0.75, processingFee + underwritingFee + (amount * 0.02)),
-        monthlyPayment: Math.round(amount * ((finalRate - 0.75) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.75) / 100 / 12, -360))),
-        processingFee,
-        underwritingFee,
-        lenderFee: Math.round(amount * 0.02),
-        note: "2 Points Buy-down"
-      },
-      {
-        lender: "Flagstar (0.5% Credit)",
-        rate: Number((finalRate + 0.25).toFixed(3)),
-        apr: calculateApr(finalRate + 0.25, processingFee + underwritingFee - (amount * 0.005)),
-        monthlyPayment: Math.round(amount * ((finalRate + 0.25) / 100 / 12) / (1 - Math.pow(1 + (finalRate + 0.25) / 100 / 12, -360))),
-        processingFee,
-        underwritingFee,
-        lenderCredit: Math.round(amount * 0.005),
-        note: "0.5% Credit towards costs"
-      },
-      {
-        lender: "Flagstar (1.0% Credit)",
-        rate: Number((finalRate + 0.5).toFixed(3)),
-        apr: calculateApr(finalRate + 0.5, processingFee + underwritingFee - (amount * 0.01)),
-        monthlyPayment: Math.round(amount * ((finalRate + 0.5) / 100 / 12) / (1 - Math.pow(1 + (finalRate + 0.5) / 100 / 12, -360))),
-        processingFee,
-        underwritingFee,
-        lenderCredit: Math.round(amount * 0.01),
-        note: "1.0% Credit towards costs"
-      },
-      {
-        lender: "PRMG (Elite)",
-        rate: Number((finalRate - 0.125).toFixed(3)),
-        apr: calculateApr(finalRate - 0.125, processingFee + underwritingFee),
-        monthlyPayment: Math.round(amount * ((finalRate - 0.125) / 100 / 12) / (1 - Math.pow(1 + (finalRate - 0.125) / 100 / 12, -360))),
-        processingFee,
-        underwritingFee,
-        note: "Elite Pricing Tier"
-      }
-    ];
-  }
+  // NOTE: getMockRates function has been removed as we now use real rate sheet parsing
+  // with actual LLPA grids from the lender Excel files
 
   // Get all rate sheets (protected)
   app.get("/api/admin/rate-sheets", requireAdmin, async (req, res) => {
@@ -183,7 +89,7 @@ export async function registerRoutes(
   app.post("/api/admin/rate-sheets", requireAdmin, async (req, res) => {
     try {
       const { lenderName, fileName, fileData } = req.body;
-      
+
       if (!lenderName || !fileName || !fileData) {
         return res.status(400).json({ message: "Missing required fields" });
       }
@@ -197,7 +103,7 @@ export async function registerRoutes(
       // Upload to LlamaCloud for parsing
       const { uploadFileToLlamaCloud } = await import('./llamaCloudService');
       const llamaResult = await uploadFileToLlamaCloud(fileData, fileName, lenderName);
-      
+
       if (!llamaResult.success) {
         console.warn("[LlamaCloud] Upload failed, continuing with local storage:", llamaResult.error);
       } else {
@@ -261,7 +167,7 @@ export async function registerRoutes(
     try {
       const allLeads = await storage.getLeads();
       const result = await syncLeadsToSheet(allLeads);
-      
+
       if (result.success) {
         res.json(result);
       } else {
@@ -278,7 +184,7 @@ export async function registerRoutes(
     try {
       const activeSheets = await storage.getActiveRateSheets();
       const { parseRateSheet } = await import('./rateSheetParser');
-      
+
       const statuses = await Promise.all(activeSheets.map(async (sheet) => {
         const parsed = await parseRateSheet(sheet.fileData, sheet.fileName, sheet.lenderName);
         return {
@@ -290,7 +196,7 @@ export async function registerRoutes(
           parseError: parsed.parseError,
         };
       }));
-      
+
       res.json(statuses);
     } catch (err) {
       console.error("Error checking rate sheet status:", err);
@@ -315,20 +221,20 @@ export async function registerRoutes(
     try {
       const allLeads = await storage.getLeads();
       const now = new Date();
-      
+
       // Calculate start of current week (Sunday)
       const currentWeekStart = new Date(now);
       currentWeekStart.setHours(0, 0, 0, 0);
       currentWeekStart.setDate(now.getDate() - now.getDay());
-      
+
       // Calculate start of previous week
       const previousWeekStart = new Date(currentWeekStart);
       previousWeekStart.setDate(previousWeekStart.getDate() - 7);
-      
+
       // Count leads for each week
       let thisWeekCount = 0;
       let lastWeekCount = 0;
-      
+
       for (const lead of allLeads) {
         if (lead.createdAt) {
           const createdDate = new Date(lead.createdAt);
@@ -339,7 +245,7 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       // Calculate percentage change
       let percentChange = 0;
       if (lastWeekCount > 0) {
@@ -347,7 +253,7 @@ export async function registerRoutes(
       } else if (thisWeekCount > 0) {
         percentChange = 100; // All new this week
       }
-      
+
       res.json({
         totalLeads: allLeads.length,
         thisWeek: thisWeekCount,
@@ -373,7 +279,7 @@ export async function registerRoutes(
   app.post(api.leads.create.path, async (req, res) => {
     try {
       const input = api.leads.create.input.parse(req.body);
-      
+
       // Map credit score to pricing engine format
       const creditScoreMap: Record<string, string> = {
         "780+": "excellent",
@@ -391,7 +297,7 @@ export async function registerRoutes(
         "fair": "fair",
         "poor": "poor",
       };
-      
+
       const loanParams: LoanParameters = {
         loanAmount: input.loanAmount,
         propertyValue: input.propertyValue,
@@ -401,18 +307,18 @@ export async function registerRoutes(
         creditScore: creditScoreMap[input.creditScore] || "good",
         loanPurpose: input.loanPurpose,
       };
-      
+
       // Try to calculate rates from uploaded rate sheets first
       const pricingResult = await calculateRates(loanParams);
-      
+
       let rates: Rate[];
       let lenderQuotes: LenderQuote[];
-      
+
       if (pricingResult.quotes.length > 0 && pricingResult.validationPassed) {
         // Use rates from uploaded rate sheets
         lenderQuotes = pricingResult.quotes;
         rates = [];
-        
+
         // Convert lender quotes to Rate format
         for (const quote of lenderQuotes) {
           for (const scenario of quote.scenarios) {
@@ -429,7 +335,7 @@ export async function registerRoutes(
             });
           }
         }
-        
+
         // Log parse errors for admin notification
         if (pricingResult.parseErrors.length > 0) {
           console.warn("Rate sheet parse errors:", pricingResult.parseErrors);
@@ -438,7 +344,7 @@ export async function registerRoutes(
         // Fallback to mock rates if no rate sheets available
         lenderQuotes = generateMockQuotes(loanParams);
         rates = [];
-        
+
         for (const quote of lenderQuotes) {
           for (const scenario of quote.scenarios) {
             rates.push({
@@ -455,11 +361,11 @@ export async function registerRoutes(
           }
         }
       }
-      
+
       // Sort by rate (lowest first) and limit to 7 rates
       rates.sort((a, b) => a.rate - b.rate);
       rates = rates.slice(0, 7);
-      
+
       // Create lead with quoted rates stored as JSON (with actual lender info for admin)
       const leadWithRates = {
         ...input,
@@ -475,22 +381,22 @@ export async function registerRoutes(
         })))
       };
       const lead = await storage.createLeadWithRates(leadWithRates);
-      
+
       // Return rates with masked lender names for customer display
       const maskedRates = rates.map((r, i) => ({
         ...r,
         lender: `Lender ${String.fromCharCode(65 + Math.floor(i / 4))}`, // A, B, C...
         note: r.note || (r.lenderFee ? `${(r.lenderFee / input.loanAmount * 100).toFixed(1)}% Points` :
-              r.lenderCredit ? `${(r.lenderCredit / input.loanAmount * 100).toFixed(1)}% Credit` :
-              "Par Rate")
+          r.lenderCredit ? `${(r.lenderCredit / input.loanAmount * 100).toFixed(1)}% Credit` :
+            "Par Rate")
       }));
-      
+
       // Don't return quotedRates to customer - strip from lead response
       const safeLeadResponse = {
         ...lead,
         quotedRates: undefined
       };
-      
+
       res.status(201).json({ lead: safeLeadResponse, rates: maskedRates });
     } catch (err) {
       if (err instanceof z.ZodError) {
