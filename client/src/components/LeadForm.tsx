@@ -28,7 +28,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
   const [downPaymentPercentInput, setDownPaymentPercentInput] = useState("22.22");
   const [downPaymentMode, setDownPaymentMode] = useState<'percent' | 'dollar'>('percent');
   const { mutate, isPending } = useCreateLead();
-  
+
   const form = useForm<InsertLead>({
     resolver: zodResolver(insertLeadSchema),
     defaultValues: {
@@ -43,6 +43,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
       annualIncome: 100000,
       isFirstTimeBuyer: "no",
       zipCode: "",
+      state: "",
       firstName: "",
       lastName: "",
       email: "",
@@ -113,10 +114,10 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
 
   const nextStep = async () => {
     let fieldsToValidate: (keyof InsertLead)[] = [];
-    
+
     if (step === 0) fieldsToValidate = ["loanPurpose"];
     if (step === 1) fieldsToValidate = ["zipCode", "loanAmount", "propertyValue", "loanTerm", "propertyType", "loanType", "annualIncome"];
-    
+
     const isValid = await trigger(fieldsToValidate);
     if (isValid) setStep(s => s + 1);
   };
@@ -137,7 +138,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
       {step === 0 && (
         <div className="text-center mb-8 px-4 animate-in fade-in slide-in-from-top duration-700 md:hidden">
           <h1 className="text-3xl font-bold text-white mb-4 tracking-tight">
-            Check your rate <br/> <span className="text-[#5cffb5]">in seconds.</span>
+            Check your rate <br /> <span className="text-[#5cffb5]">in seconds.</span>
           </h1>
           <p className="text-blue-100/90 font-medium text-lg mb-2">
             Lower rates. Real savings. No BS.
@@ -145,7 +146,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
           <p className="text-blue-200/60 text-sm mb-6 leading-relaxed">
             See if your deal is good — or if you can do better with our AI engine.
           </p>
-          
+
           <div className="space-y-3 max-w-xs mx-auto text-left mb-8">
             {[
               "Instant AI check on your current rate",
@@ -171,7 +172,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
       )}>
         {STEPS.map((s, i) => (
           <div key={s.id} className="flex flex-col items-center relative z-10">
-            <motion.div 
+            <motion.div
               initial={false}
               animate={{
                 backgroundColor: i <= step ? "#5cffb5" : "rgba(5, 8, 30, 0.9)",
@@ -190,7 +191,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
         ))}
         {/* Connecting Line */}
         <div className="absolute top-3 left-0 w-full h-[1px] bg-gradient-to-r from-blue-500/10 via-blue-400/10 to-blue-500/10 -z-0 px-12">
-          <motion.div 
+          <motion.div
             className="h-full bg-gradient-to-r from-[#5cffb5] to-[#0fd0ff]"
             initial={{ width: "0%" }}
             animate={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
@@ -221,8 +222,8 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                     onClick={() => setValue("loanPurpose", "purchase")}
                     className={cn(
                       "p-4 rounded-xl border transition-all duration-300 flex items-center gap-4 group",
-                      loanPurpose === "purchase" 
-                        ? "bg-[#5cffb5]/10 border-[#5cffb5] shadow-[0_0_15px_rgba(92,255,181,0.2)]" 
+                      loanPurpose === "purchase"
+                        ? "bg-[#5cffb5]/10 border-[#5cffb5] shadow-[0_0_15px_rgba(92,255,181,0.2)]"
                         : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
                     )}
                   >
@@ -243,8 +244,8 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                     onClick={() => setValue("loanPurpose", "refinance")}
                     className={cn(
                       "p-4 rounded-xl border transition-all duration-300 flex items-center gap-4 group",
-                      loanPurpose === "refinance" 
-                        ? "bg-[#0fd0ff]/10 border-[#0fd0ff] shadow-[0_0_15px_rgba(15,208,255,0.2)]" 
+                      loanPurpose === "refinance"
+                        ? "bg-[#0fd0ff]/10 border-[#0fd0ff] shadow-[0_0_15px_rgba(15,208,255,0.2)]"
                         : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20"
                     )}
                   >
@@ -280,13 +281,75 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-blue-200">Zip Code</Label>
-                    <Input 
+                    <Input
                       {...register("zipCode")}
-                      className="glass-input h-12" 
+                      className="glass-input h-12"
                       placeholder="e.g. 85001"
                       maxLength={5}
                     />
                     {errors.zipCode && <span className="text-red-400 text-xs">{errors.zipCode.message}</span>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-blue-200">Property State</Label>
+                    <Select onValueChange={(v) => setValue("state", v)} value={watch("state") || ""}>
+                      <SelectTrigger className="glass-input h-12 w-full" data-testid="select-state">
+                        <SelectValue placeholder="Select State" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#050818] border-blue-500/30 text-white max-h-[300px]">
+                        <SelectItem value="AL">Alabama</SelectItem>
+                        <SelectItem value="AK">Alaska</SelectItem>
+                        <SelectItem value="AZ">Arizona</SelectItem>
+                        <SelectItem value="AR">Arkansas</SelectItem>
+                        <SelectItem value="CA">California</SelectItem>
+                        <SelectItem value="CO">Colorado</SelectItem>
+                        <SelectItem value="CT">Connecticut</SelectItem>
+                        <SelectItem value="DE">Delaware</SelectItem>
+                        <SelectItem value="FL">Florida</SelectItem>
+                        <SelectItem value="GA">Georgia</SelectItem>
+                        <SelectItem value="HI">Hawaii</SelectItem>
+                        <SelectItem value="ID">Idaho</SelectItem>
+                        <SelectItem value="IL">Illinois</SelectItem>
+                        <SelectItem value="IN">Indiana</SelectItem>
+                        <SelectItem value="IA">Iowa</SelectItem>
+                        <SelectItem value="KS">Kansas</SelectItem>
+                        <SelectItem value="KY">Kentucky</SelectItem>
+                        <SelectItem value="LA">Louisiana</SelectItem>
+                        <SelectItem value="ME">Maine</SelectItem>
+                        <SelectItem value="MD">Maryland</SelectItem>
+                        <SelectItem value="MA">Massachusetts</SelectItem>
+                        <SelectItem value="MI">Michigan</SelectItem>
+                        <SelectItem value="MN">Minnesota</SelectItem>
+                        <SelectItem value="MS">Mississippi</SelectItem>
+                        <SelectItem value="MO">Missouri</SelectItem>
+                        <SelectItem value="MT">Montana</SelectItem>
+                        <SelectItem value="NE">Nebraska</SelectItem>
+                        <SelectItem value="NV">Nevada</SelectItem>
+                        <SelectItem value="NH">New Hampshire</SelectItem>
+                        <SelectItem value="NJ">New Jersey</SelectItem>
+                        <SelectItem value="NM">New Mexico</SelectItem>
+                        <SelectItem value="NY">New York</SelectItem>
+                        <SelectItem value="NC">North Carolina</SelectItem>
+                        <SelectItem value="ND">North Dakota</SelectItem>
+                        <SelectItem value="OH">Ohio</SelectItem>
+                        <SelectItem value="OK">Oklahoma</SelectItem>
+                        <SelectItem value="OR">Oregon</SelectItem>
+                        <SelectItem value="PA">Pennsylvania</SelectItem>
+                        <SelectItem value="RI">Rhode Island</SelectItem>
+                        <SelectItem value="SC">South Carolina</SelectItem>
+                        <SelectItem value="SD">South Dakota</SelectItem>
+                        <SelectItem value="TN">Tennessee</SelectItem>
+                        <SelectItem value="TX">Texas</SelectItem>
+                        <SelectItem value="UT">Utah</SelectItem>
+                        <SelectItem value="VT">Vermont</SelectItem>
+                        <SelectItem value="VA">Virginia</SelectItem>
+                        <SelectItem value="WA">Washington</SelectItem>
+                        <SelectItem value="WV">West Virginia</SelectItem>
+                        <SelectItem value="WI">Wisconsin</SelectItem>
+                        <SelectItem value="WY">Wyoming</SelectItem>
+                        <SelectItem value="DC">Washington D.C.</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {loanPurpose === "refinance" && (
@@ -311,8 +374,8 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                     <Label className="text-blue-200">{loanPurpose === "purchase" ? "Purchase Price" : "Estimated Value"}</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
-                      <Input 
-                        className="glass-input h-12 pl-10" 
+                      <Input
+                        className="glass-input h-12 pl-10"
                         placeholder="450,000"
                         data-testid="input-property-value"
                         value={(propertyValue || 0).toLocaleString()}
@@ -334,8 +397,8 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                             data-testid="toggle-down-payment-percent"
                             className={cn(
                               "px-3 py-1 text-xs font-medium transition-colors",
-                              downPaymentMode === 'percent' 
-                                ? "bg-blue-500/30 text-white" 
+                              downPaymentMode === 'percent'
+                                ? "bg-blue-500/30 text-white"
                                 : "bg-transparent text-blue-300/70"
                             )}
                             onClick={() => setDownPaymentMode('percent')}
@@ -347,8 +410,8 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                             data-testid="toggle-down-payment-dollar"
                             className={cn(
                               "px-3 py-1 text-xs font-medium transition-colors",
-                              downPaymentMode === 'dollar' 
-                                ? "bg-blue-500/30 text-white" 
+                              downPaymentMode === 'dollar'
+                                ? "bg-blue-500/30 text-white"
                                 : "bg-transparent text-blue-300/70"
                             )}
                             onClick={() => setDownPaymentMode('dollar')}
@@ -363,13 +426,13 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                         ) : (
                           <Percent className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
                         )}
-                        <Input 
-                          className="glass-input h-12 pl-10" 
+                        <Input
+                          className="glass-input h-12 pl-10"
                           placeholder={downPaymentMode === 'percent' ? "3.5" : "100,000"}
                           data-testid="input-down-payment"
                           type="text"
                           inputMode={downPaymentMode === 'percent' ? "decimal" : "numeric"}
-                          value={downPaymentMode === 'percent' 
+                          value={downPaymentMode === 'percent'
                             ? downPaymentPercentInput
                             : downPayment.toLocaleString()
                           }
@@ -387,7 +450,7 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                         />
                       </div>
                       <p className="text-xs text-blue-200/50">
-                        {downPaymentMode === 'percent' 
+                        {downPaymentMode === 'percent'
                           ? `$${downPayment.toLocaleString()} down`
                           : propertyValue > 0 ? `${((downPayment / propertyValue) * 100).toFixed(1)}% down` : ''
                         }
@@ -399,8 +462,8 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                     <Label className="text-blue-200">Loan Amount</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
-                      <Input 
-                        className="glass-input h-12 pl-10" 
+                      <Input
+                        className="glass-input h-12 pl-10"
                         placeholder="350,000"
                         data-testid="input-loan-amount"
                         value={(loanAmount || 0).toLocaleString()}
@@ -416,8 +479,8 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
                     <Label className="text-blue-200">Annual Gross Income</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-3.5 w-5 h-5 text-blue-300/50" />
-                      <Input 
-                        className="glass-input h-12 pl-10" 
+                      <Input
+                        className="glass-input h-12 pl-10"
                         placeholder="100,000"
                         value={(watch("annualIncome") || 0).toLocaleString()}
                         onChange={(e) => {
@@ -567,28 +630,28 @@ export function LeadForm({ onRatesReceived }: LeadFormProps) {
 
           <div className="mt-8 flex gap-3">
             {step > 0 && (
-              <GlassButton 
-                type="button" 
-                variant="secondary" 
+              <GlassButton
+                type="button"
+                variant="secondary"
                 onClick={prevStep}
                 className="w-14 px-0"
               >
                 <ArrowLeft className="w-5 h-5" />
               </GlassButton>
             )}
-            
+
             {step < 2 ? (
-              <GlassButton 
-                type="button" 
-                onClick={nextStep} 
+              <GlassButton
+                type="button"
+                onClick={nextStep}
                 className="flex-1"
                 data-testid="button-next-step"
               >
                 Next Step <ChevronRight className="w-4 h-4 ml-2" />
               </GlassButton>
             ) : (
-              <GlassButton 
-                type="submit" 
+              <GlassButton
+                type="submit"
                 isLoading={isPending}
                 className="flex-1"
                 data-testid="button-get-rates"

@@ -306,6 +306,7 @@ export async function registerRoutes(
         propertyType: input.propertyType || "single_family",
         creditScore: creditScoreMap[input.creditScore] || "good",
         loanPurpose: input.loanPurpose,
+        state: input.state, // Pass state for LLPA adjustments
       };
 
       // Try to calculate rates from uploaded rate sheets first

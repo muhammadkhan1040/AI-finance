@@ -19,6 +19,7 @@ export const leads = pgTable("leads", {
   loanType: text("loan_type").notNull().default("conventional"),
   annualIncome: integer("annual_income").notNull().default(0),
   isFirstTimeBuyer: text("is_first_time_buyer").notNull().default("no"),
+  state: text("state"), // Two-letter state code (e.g., "AZ", "CA", "FL")
   quotedRates: text("quoted_rates"), // JSON string of rates shown to lead
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -35,6 +36,7 @@ export const insertLeadSchema = createInsertSchema(leads).omit({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   zipCode: z.string().min(5, "Valid zip code is required"),
+  state: z.string().length(2, "Please select a state").optional(),
 });
 
 export const insertLeadWithRatesSchema = insertLeadSchema.extend({

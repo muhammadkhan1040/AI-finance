@@ -38,6 +38,7 @@ class InMemoryStorage implements IStorage {
       loanType: insertLead.loanType || "conventional",
       annualIncome: insertLead.annualIncome || 0,
       isFirstTimeBuyer: insertLead.isFirstTimeBuyer || "no",
+      state: insertLead.state || null,
       quotedRates: null,
       createdAt: new Date(),
     };
@@ -64,6 +65,7 @@ class InMemoryStorage implements IStorage {
       loanType: insertLead.loanType || "conventional",
       annualIncome: insertLead.annualIncome || 0,
       isFirstTimeBuyer: insertLead.isFirstTimeBuyer || "no",
+      state: insertLead.state || null,
       quotedRates: insertLead.quotedRates || null,
       createdAt: new Date(),
     };
