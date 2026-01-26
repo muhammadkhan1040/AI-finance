@@ -629,13 +629,20 @@ function normalizePrice(price: number, lenderType: string): number {
     if (price < 0) {
       // 20 is a safe threshold (e.g. -4 pts)
       if (Math.abs(price) < 20) return 100 + Math.abs(price);
-    } else if (price > 0 && price < 10) {
+    } else if (price > 0 && price < 20) {
+      // Positive price < 20 means cost in points, so 100 - price
       return 100 - price;
     }
+  } else if (price < 20 && price > -20) {
+    // Standard Logic for other lenders:
+    // If price is small (e.g. 1.5 or -1.5), it's likely points.
+    // Usually positive points = cost (100 - x)
+    // But sometimes negative points = credit (100 + x)?
+    // User snippet says: "else if (price < 20) { price = 100 - price; }"
+    // We'll follow that exactly for positive small numbers.
+    if (price > 0) return 100 - price;
   }
-  // Standard logic: if small number < 20, assume it's additive to 100? No, usually 100+ format.
-  // But if it IS raw points, we might need adjustment. 
-  // For now, only applying PRMG fix as requested.
+
   return price;
 }
 

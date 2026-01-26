@@ -455,14 +455,14 @@ function findRateForTargetPrice(
     // [CONSTRAINT] Scenario Logic Checks
 
     // 1. Credit Scenario (Target > 100): We expect the borrower to RECEIVE a credit
-    //    If Net Price < 100, the borrower is PAYING points. That violates the "Lender Credit" promise.
-    if (targetNetPrice > 100 && option.netPrice < 100.0) {
+    //    If Net Price <= 100, the borrower is PAYING points (or Par). That violates the "Lender Credit" promise.
+    if (targetNetPrice > 100 && option.netPrice <= 100.0) {
       continue;
     }
 
     // 2. Buydown Scenario (Target < 100): We expect the borrower to PAY points
-    //    If Net Price > 100.125, it's essentially Par or worse (a Rebate). We want a cost scenario.
-    if (targetNetPrice < 100 && option.netPrice > 100.125) {
+    //    If Net Price > 100.25, it's essentially Par or worse (a Rebate). We want a cost scenario.
+    if (targetNetPrice < 100 && option.netPrice > 100.25) {
       continue;
     }
 
