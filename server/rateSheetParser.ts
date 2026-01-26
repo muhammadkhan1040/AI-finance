@@ -686,9 +686,7 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
 
     // Override detection via filename if generic
     if (lenderType === 'generic') {
-      const fName = lenderName.toLowerCase(); // parseExcelRateSheet arg says 'lenderName' but it might be 'fileName' passed from caller? 
-      // Actually the argument is 'lenderName' (the name user extracted), but we should probably use the original filename context if possible. 
-      // The caller passes (fileData, lenderName). The generic 'lenderName' passed in might be "PRMG" if user typed it or extracted it.
+      const fName = lenderName.toLowerCase();
       if (fName.includes('prmg') || fName.includes('agency') || fName.includes('wholesale')) lenderType = 'prmg';
       else if (fName.includes('windsor')) lenderType = 'windsor';
       else if (fName.includes('elend')) lenderType = 'elend';
@@ -698,8 +696,149 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
         console.log(`[PARSER] Lender detected from name '${lenderName}': ${lenderType}`);
       }
     }
-    let rates: ParsedRate[];
+
+    let rates: ParsedRate[] = [];
     let adjustments: AdjustmentGrid[] = [];
+
+    if (lenderType === 'prmg') {
+      console.log("[PRMG] Initiating specific PRMG parser logic...");
+
+      // 1. Iterate through all sheets
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
+        // 2. Scan for Base Rate Tables
+        // Look for row with "Rate" and "30.0" or "30"
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row) continue;
+          const rateColIndex = row.findIndex(cell => typeof cell === 'string' && cell.trim() === 'Rate');
+
+          if (rateColIndex !== -1) {
+            // Found a potential table. Look for "30.0" or "30" lock column
+            const lock30Index = row.findIndex((cell, idx) => idx > rateColIndex && (cell == 30 || cell == "30.0" || cell == "30" || cell == 30.0));
+
+            if (lock30Index !== -1) {
+              console.log(`[PRMG] Found Rate Table on Sheet: ${sheetName}, Row: ${i}`);
+
+              // Parse the Rates below this header
+              for (let j = i + 1; j < rows.length; j++) {
+                const rateRow = rows[j];
+                // Stop if empty or text (end of table)
+                if (!rateRow || !rateRow[rateColIndex]) break;
+
+                let rawRate = typeof rateRow[rateColIndex] === 'number' ? rateRow[rateColIndex] : parseFloat(rateRow[rateColIndex]);
+                let rawPrice = typeof rateRow[lock30Index] === 'number' ? rateRow[lock30Index] : parseFloat(rateRow[lock30Index]);
+
+                if (isNaN(rawRate) || isNaN(rawPrice)) continue;
+
+                // PRMG Normalization:
+                // 1. Rate is decimal (0.07125) -> convert to 7.125
+                if (rawRate < 1) rawRate = rawRate * 100;
+
+                // 2. Price is Negative Yield (-4.0) -> convert to 104.0
+                //    Price is Positive Cost (0.5) -> convert to 99.5
+                let finalPrice = 0;
+                if (rawPrice < 0) {
+                  finalPrice = 100 + Math.abs(rawPrice);
+                } else {
+                  finalPrice = 100 - rawPrice;
+                }
+
+                // PRMG only has 30 day? Or verify columns for 15/45?
+                // User snippet says "lockPeriod: 30".
+                // We need to map to ParsedRate interface (price15Day, price30Day, price45Day)
+                // Assuming rawPrice is 30 day price.
+
+                rates.push({
+                  rate: rawRate,
+                  price15Day: finalPrice, // Fallback
+                  price30Day: finalPrice,
+                  price45Day: finalPrice, // Fallback
+                  loanTerm: "30yr", // Default, could parse sheet name
+                  loanType: "conventional" // Default, could parse sheet name
+                });
+              }
+            }
+          }
+        }
+
+        // 3. Scan for Adjustment Grids (FICO / LTV)
+        // PRMG uses "Credit Score" or "FICO" in first column, and ranges like "60.01-65%" in header
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          if (!row) continue;
+          const firstCell = String(row[0] || "").trim().toLowerCase();
+
+          if (firstCell.includes("fico") || firstCell.includes("credit score")) {
+            // Found an adjustment grid header
+            const xHeaders: string[] = []; // LTV buckets
+            const ltvMap: number[] = []; // Store column indices
+
+            // Parse Column Headers (LTV Buckets)
+            for (let k = 1; k < row.length; k++) {
+              if (row[k] && String(row[k]).includes("%")) {
+                xHeaders.push(String(row[k]));
+                ltvMap.push(k);
+              }
+            }
+
+            if (ltvMap.length > 0) {
+              const yHeaders: string[] = [];
+              const gridData: (number | null)[][] = [];
+
+              // Parse Rows (FICO Buckets)
+              for (let j = i + 1; j < i + 15; j++) { // Scan next 15 rows
+                const adjRow = rows[j];
+                if (!adjRow || !adjRow[0]) break; // End of table
+
+                const rowLabel = String(adjRow[0]);
+                // Check if it's a FICO label (e.g. "720-739" or ">=780")
+                if (!/\d/.test(rowLabel)) break; // Stop if no numbers (e.g. "Total Loan Amount")
+
+                yHeaders.push(rowLabel);
+                const rowData: number[] = [];
+
+                ltvMap.forEach(colIdx => {
+                  let val = parseFloat(adjRow[colIdx]);
+                  if (isNaN(val)) val = 0;
+                  rowData.push(val);
+                });
+                gridData.push(rowData);
+              }
+
+              if (yHeaders.length > 0) {
+                adjustments.push({
+                  name: `PRMG Adj - ${sheetName} - Row ${i}`,
+                  type: 'fico_ltv',
+                  loanPurpose: 'all',
+                  axes: { y: yHeaders, x: xHeaders },
+                  data: gridData
+                });
+                console.log(`[PRMG] Parsed Adjustment Grid: ${sheetName} Row ${i}`);
+              }
+            }
+          }
+        }
+      }
+      // Return early since we did manual parsing
+      const rateSummary = new Map<string, number>();
+      for (const rate of rates) {
+        const key = `${rate.loanTerm} ${rate.loanType}`;
+        rateSummary.set(key, (rateSummary.get(key) || 0) + 1);
+      }
+      console.log(`[PARSER] ${lenderName}: Found ${rates.length} valid rates (PRMG Logic)`);
+      console.log(`[PARSER] ${lenderName}: Found ${adjustments.length} adjustment grids (PRMG Logic)`);
+
+      return {
+        lenderName,
+        rates,
+        adjustments,
+        parseSuccess: rates.length > 0,
+        parseError: rates.length === 0 ? "No valid rates found in Excel file" : undefined,
+      };
+    }
 
     switch (lenderType) {
       case 'rocket':
@@ -711,7 +850,6 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
         adjustments = parseELendLLPAs(workbook);
         break;
       case 'windsor':
-      case 'prmg':
         // Pass lender name to generic parser for checking PRMG math
         rates = parseGenericSheet(workbook, lenderType);
         adjustments = parseGenericLLPAs(workbook);
