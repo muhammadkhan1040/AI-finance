@@ -561,26 +561,54 @@ function parseGenericSheet(workbook: XLSX.WorkBook, lenderType: string = 'generi
       const row = jsonData[rowIdx];
       if (!row || row.length === 0) continue;
 
-      const rateCell = row[0];
-      if (typeof rateCell === 'number' && rateCell >= 3 && rateCell <= 12) {
-        let price15 = typeof row[1] === 'number' ? row[1] : parseFloat(String(row[1]));
-        let price30 = typeof row[2] === 'number' ? row[2] : parseFloat(String(row[2]));
-        let price45 = typeof row[3] === 'number' ? row[3] : parseFloat(String(row[3]));
+      // Dynamic scanning: Look for a rate in first 10 columns
+      // Rate criterion: Number between 2.5 and 12.5
+      let rateFound = false;
 
-        // Apply PRMG Normalization
-        price15 = normalizePrice(price15, lenderType);
-        price30 = normalizePrice(price30, lenderType);
-        price45 = normalizePrice(price45, lenderType);
+      for (let colIdx = 0; colIdx < Math.min(row.length, 10); colIdx++) {
+        const cell = row[colIdx];
+        if (typeof cell === 'number' && cell >= 2.5 && cell <= 12.5) {
+          // Found potential rate. Check if next columns are prices.
+          // Prices must be number > 80 (raw price) OR small number (points/rebate)
+          // PRMG/Generic often has Rate | 15 Day | 30 Day | 45 Day
 
-        if (!isNaN(price15) && price15 > 90 && price15 < 110) {
-          rates.push({
-            rate: rateCell,
-            price15Day: price15,
-            price30Day: !isNaN(price30) && price30 > 90 ? price30 : price15,
-            price45Day: !isNaN(price45) && price45 > 90 ? price45 : price15,
-            loanTerm: currentLoanTerm,
-            loanType: currentLoanType,
-          });
+          let p1 = row[colIdx + 1];
+          let p2 = row[colIdx + 2];
+          let p3 = row[colIdx + 3];
+
+          // Helper to safely parse
+          const parseP = (v: any) => (typeof v === 'number' ? v : parseFloat(String(v)));
+          let price15 = parseP(p1);
+          let price30 = parseP(p2);
+          let price45 = parseP(p3);
+
+          // If 15/30 are invalid, maybe this isn't a rate row?
+          // Condition: At least one price must be valid number
+          if (isNaN(price15) && isNaN(price30)) continue;
+
+          // Normalize
+          price15 = normalizePrice(price15, lenderType);
+          price30 = normalizePrice(price30, lenderType);
+          price45 = normalizePrice(price45, lenderType);
+
+          // Validation: Price > 80 means it's a valid price (after normalization)
+          // We allow one to be missing/NaN, fallback to others
+          if ((!isNaN(price15) && price15 > 80) || (!isNaN(price30) && price30 > 80)) {
+            const validPrice15 = !isNaN(price15) && price15 > 80 ? price15 : (!isNaN(price30) ? price30 : 100);
+            const validPrice30 = !isNaN(price30) && price30 > 80 ? price30 : validPrice15;
+            const validPrice45 = !isNaN(price45) && price45 > 80 ? price45 : validPrice30;
+
+            rates.push({
+              rate: cell,
+              price15Day: validPrice15,
+              price30Day: validPrice30,
+              price45Day: validPrice45,
+              loanTerm: currentLoanTerm,
+              loanType: currentLoanType,
+            });
+            rateFound = true;
+            break; // Found the rate for this row, stop scanning columns
+          }
         }
       }
     }
