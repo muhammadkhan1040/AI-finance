@@ -705,33 +705,54 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
 
       // 1. Iterate through all sheets
       for (const sheetName of workbook.SheetNames) {
+        // Skip adjustment sheets
+        if (sheetName.includes('ADJ') || sheetName.includes('SPEC') || sheetName.includes('NOOSH')) continue;
+
         const sheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
 
+        // Determine loan type from sheet name
+        let loanType = 'conventional';
+        if (sheetName.toLowerCase().includes('govt')) loanType = 'fha'; // or VA
+        if (sheetName.toLowerCase().includes('jumbo')) loanType = 'conventional';
+
+        console.log(`[PRMG] Processing sheet: ${sheetName}, rows: ${rows.length}`);
+
         // 2. Scan for Base Rate Tables
-        // Look for row with "Rate" and "30.0" or "30"
+        // PRMG format: Header row has "Rate", 15, 30 (numeric lock periods)
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
           if (!row) continue;
+
+          // Find "Rate" text in row
           const rateColIndex = row.findIndex(cell => typeof cell === 'string' && cell.trim() === 'Rate');
 
           if (rateColIndex !== -1) {
-            // Found a potential table. Look for "30.0" or "30" lock column
-            const lock30Index = row.findIndex((cell, idx) => idx > rateColIndex && (cell == 30 || cell == "30.0" || cell == "30" || cell == 30.0));
+            // Found header. Check if next cells are 15 and 30 (lock periods)
+            const lock15Index = rateColIndex + 1;
+            const lock30Index = rateColIndex + 2;
 
-            if (lock30Index !== -1) {
-              console.log(`[PRMG] Found Rate Table on Sheet: ${sheetName}, Row: ${i}`);
+            // Verify structure: cell should be 15 or 30
+            if (row[lock15Index] == 15 && row[lock30Index] == 30) {
+              console.log(`[PRMG] Found Rate Table on Sheet: ${sheetName}, Header Row: ${i}, RateCol: ${rateColIndex}`);
 
               // Parse the Rates below this header
               for (let j = i + 1; j < rows.length; j++) {
                 const rateRow = rows[j];
-                // Stop if empty or text (end of table)
-                if (!rateRow || !rateRow[rateColIndex]) break;
+                if (!rateRow) break;
 
-                let rawRate = typeof rateRow[rateColIndex] === 'number' ? rateRow[rateColIndex] : parseFloat(rateRow[rateColIndex]);
-                let rawPrice = typeof rateRow[lock30Index] === 'number' ? rateRow[lock30Index] : parseFloat(rateRow[lock30Index]);
+                const rawRateCell = rateRow[rateColIndex];
 
-                if (isNaN(rawRate) || isNaN(rawPrice)) continue;
+                // Stop if we hit another header (Rate text) or empty row
+                if (typeof rawRateCell === 'string' && rawRateCell.trim() === 'Rate') break;
+                if (rawRateCell === null || rawRateCell === undefined) break;
+
+                // Parse rate and prices
+                let rawRate = typeof rawRateCell === 'number' ? rawRateCell : parseFloat(rawRateCell);
+                let rawPrice15 = typeof rateRow[lock15Index] === 'number' ? rateRow[lock15Index] : parseFloat(rateRow[lock15Index]);
+                let rawPrice30 = typeof rateRow[lock30Index] === 'number' ? rateRow[lock30Index] : parseFloat(rateRow[lock30Index]);
+
+                if (isNaN(rawRate)) continue;
 
                 // PRMG Normalization:
                 // 1. Rate is decimal (0.07125) -> convert to 7.125
@@ -739,42 +760,49 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
 
                 // 2. Price is Negative Yield (-4.0) -> convert to 104.0
                 //    Price is Positive Cost (0.5) -> convert to 99.5
-                let finalPrice = 0;
-                if (rawPrice < 0) {
-                  finalPrice = 100 + Math.abs(rawPrice);
-                } else {
-                  finalPrice = 100 - rawPrice;
-                }
+                const normalize = (p: number) => {
+                  if (isNaN(p)) return 100;
+                  if (p < 0) return 100 + Math.abs(p);
+                  return 100 - p;
+                };
 
-                // PRMG only has 30 day? Or verify columns for 15/45?
-                // User snippet says "lockPeriod: 30".
-                // We need to map to ParsedRate interface (price15Day, price30Day, price45Day)
-                // Assuming rawPrice is 30 day price.
+                const finalPrice15 = normalize(rawPrice15);
+                const finalPrice30 = normalize(rawPrice30);
 
                 rates.push({
                   rate: rawRate,
-                  price15Day: finalPrice, // Fallback
-                  price30Day: finalPrice,
-                  price45Day: finalPrice, // Fallback
-                  loanTerm: "30yr", // Default, could parse sheet name
-                  loanType: "conventional" // Default, could parse sheet name
+                  price15Day: finalPrice15,
+                  price30Day: finalPrice30,
+                  price45Day: finalPrice30, // Fallback to 30-day
+                  loanTerm: "30yr", // Could parse from sheet structure
+                  loanType: loanType
                 });
               }
             }
           }
         }
 
-        // 3. Scan for Adjustment Grids (FICO / LTV)
-        // PRMG uses "Credit Score" or "FICO" in first column, and ranges like "60.01-65%" in header
+        // 3. Scan for Adjustment Grids (FICO / LTV) - Only on ADJ sheets
+      }
+
+      // Parse adjustment grids from ADJ sheets
+      for (const sheetName of workbook.SheetNames) {
+        if (!sheetName.includes('ADJ')) continue;
+
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
+        console.log(`[PRMG] Processing Adjustments sheet: ${sheetName}`);
+
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
           if (!row) continue;
           const firstCell = String(row[0] || "").trim().toLowerCase();
 
-          if (firstCell.includes("fico") || firstCell.includes("credit score")) {
+          if (firstCell.includes("fico") || firstCell.includes("credit score") || firstCell.includes("credit")) {
             // Found an adjustment grid header
             const xHeaders: string[] = []; // LTV buckets
-            const ltvMap: number[] = []; // Store column indices
+            const ltvMap: number[] = [];
 
             // Parse Column Headers (LTV Buckets)
             for (let k = 1; k < row.length; k++) {
@@ -789,13 +817,12 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
               const gridData: (number | null)[][] = [];
 
               // Parse Rows (FICO Buckets)
-              for (let j = i + 1; j < i + 15; j++) { // Scan next 15 rows
+              for (let j = i + 1; j < i + 15; j++) {
                 const adjRow = rows[j];
-                if (!adjRow || !adjRow[0]) break; // End of table
+                if (!adjRow || !adjRow[0]) break;
 
                 const rowLabel = String(adjRow[0]);
-                // Check if it's a FICO label (e.g. "720-739" or ">=780")
-                if (!/\d/.test(rowLabel)) break; // Stop if no numbers (e.g. "Total Loan Amount")
+                if (!/\d/.test(rowLabel)) break;
 
                 yHeaders.push(rowLabel);
                 const rowData: number[] = [];
