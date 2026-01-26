@@ -16,6 +16,8 @@ export async function registerRoutes(
   const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
   const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
+  console.log(`[AUTH] Admin User configured: ${!!ADMIN_USERNAME}, Password configured: ${!!ADMIN_PASSWORD}`);
+
   if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
     console.warn("WARNING: ADMIN_USERNAME and ADMIN_PASSWORD secrets are not set. Admin login will be disabled.");
   }
@@ -92,6 +94,15 @@ export async function registerRoutes(
 
       if (!lenderName || !fileName || !fileData) {
         return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Validate file extension
+      const lowerFileName = fileName.toLowerCase();
+      const allowedExtensions = ['.xlsx', '.xls', '.csv', '.pdf'];
+      const isValidExt = allowedExtensions.some(ext => lowerFileName.endsWith(ext));
+
+      if (!isValidExt) {
+        return res.status(400).json({ message: "Invalid file type. Allowed: .xlsx, .xls, .csv, .pdf" });
       }
 
       // Check limit of 5 active rate sheets
