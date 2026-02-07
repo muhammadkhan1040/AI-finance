@@ -758,12 +758,22 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
                 // 1. Rate is decimal (0.07125) -> convert to 7.125
                 if (rawRate < 1) rawRate = rawRate * 100;
 
-                // 2. Price is Negative Yield (-4.0) -> convert to 104.0
-                //    Price is Positive Cost (0.5) -> convert to 99.5
+                // 2. Price Logic for PRMG:
+                //    Negative (e.g. -4.50) = REBATE (Yield). Base Price = 100 + 4.5 = 104.5
+                //    Positive small (e.g. 0.50) = COST (Discount). Base Price = 100 - 0.5 = 99.5
+                //    Positive large (e.g. 98.5) = Already a valid price, use as-is
                 const normalize = (p: number) => {
                   if (isNaN(p)) return 100;
-                  if (p < 0) return 100 + Math.abs(p);
-                  return 100 - p;
+                  if (p < 0) {
+                    // Negative = Rebate (e.g., -4.0 -> 104.0)
+                    return 100 + Math.abs(p);
+                  } else if (p < 20) {
+                    // Small positive = Cost/Points (e.g., 0.5 -> 99.5)
+                    return 100 - p;
+                  } else {
+                    // Large positive = Already a valid price (e.g., 98.5 -> 98.5)
+                    return p;
+                  }
                 };
 
                 const finalPrice15 = normalize(rawPrice15);

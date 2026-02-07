@@ -308,8 +308,9 @@ function calculateTotalAdjustments(
       let rowIndex = -1;
       for (let i = 0; i < grid.axes.y.length; i++) {
         const rowLabel = grid.axes.y[i].toUpperCase();
-        // Check for exact match or list match (e.g. "CT, DC, DE, IL")
-        const statesInRow = rowLabel.split(/[,/]\s*/).map(s => s.trim());
+        // Check for exact match or list match (e.g. "CT, DC, DE, IL" or "Group 2; CT, DC")
+        // Split by comma, slash, semicolon, or extra whitespace
+        const statesInRow = rowLabel.split(/[,/;\s]+/).map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
         if (statesInRow.includes(params.state.toUpperCase())) {
           rowIndex = i;
           break;
@@ -455,14 +456,14 @@ function findRateForTargetPrice(
     // [CONSTRAINT] Scenario Logic Checks
 
     // 1. Credit Scenario (Target > 100): We expect the borrower to RECEIVE a credit
-    //    If Net Price <= 100, the borrower is PAYING points (or Par). That violates the "Lender Credit" promise.
+    //    Net Price MUST be > 100.0 to be a true rebate. Par (100.0-100.25) should NOT qualify.
     if (targetNetPrice > 100 && option.netPrice <= 100.0) {
       continue;
     }
 
     // 2. Buydown Scenario (Target < 100): We expect the borrower to PAY points
-    //    If Net Price > 100.25, it's essentially Par or worse (a Rebate). We want a cost scenario.
-    if (targetNetPrice < 100 && option.netPrice > 100.25) {
+    //    Net Price MUST be < 100.0 to be a true cost. Par or rebate should NOT qualify.
+    if (targetNetPrice < 100 && option.netPrice >= 100.0) {
       continue;
     }
 
