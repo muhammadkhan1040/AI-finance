@@ -256,293 +256,31 @@ function parseELendLLPAs(workbook: XLSX.WorkBook): AdjustmentGrid[] {
       'co_refi'
     );
     if (coRefiFicoLtv) grids.push(coRefiFicoLtv);
-  }
 
-  // Parse GNMA LLPA sheet for FHA/VA adjustments
-  const gnmaLlpaSheet = workbook.Sheets['GNMA LLPA'];
-  if (gnmaLlpaSheet) {
-    const jsonData = XLSX.utils.sheet_to_json(gnmaLlpaSheet, { header: 1 }) as any[][];
-    console.log(`[PARSER] E Lend GNMA LLPA has ${jsonData.length} rows`);
-
-    // Look for FICO/LTV grids similar to conventional
-    // GNMA typically has simpler adjustment structure
-    const gnmaFicoLtv = parseAdjustmentGrid(
+    // FHLMC C/O Loan Attribute LLPA (rows 62-69)
+    const coRefiPropertyGrid = parseAdjustmentGrid(
       jsonData,
-      7,      // startRow
-      7,      // headerRow
-      9,      // dataStartRow
-      17,     // dataEndRow
+      61,     // startRow
+      49,     // headerRow (same LTV headers)
+      61,     // dataStartRow
+      68,     // dataEndRow
       colToIndex('A'),  // labelCol
       colToIndex('C'),  // dataStartCol
       colToIndex('K'),  // dataEndCol
-      'GNMA FICO/LTV',
-      'fico_ltv',
-      'all'
+      'FHLMC C/O Refi Property Adjustments',
+      'property',
+      'co_refi'
     );
-    if (gnmaFicoLtv) grids.push(gnmaFicoLtv);
+    if (coRefiPropertyGrid) grids.push(coRefiPropertyGrid);
+
+    console.log(`[PARSER] E Lend FHLMC-FNMA: Parsed ${grids.length} grids`);
   }
 
   return grids;
 }
 
-// NEW: Parse Rocket LLPA grids
-function parseRocketLLPAs(workbook: XLSX.WorkBook): AdjustmentGrid[] {
-  const grids: AdjustmentGrid[] = [];
-
-  // Look for sheets containing LLPAs
-  for (const sheetName of workbook.SheetNames) {
-    if (sheetName.includes('LLPA') || sheetName.includes('Govy')) {
-      const sheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-      console.log(`[PARSER] Rocket ${sheetName} has ${jsonData.length} rows`);
-
-      // Scan for LLPA grids using dynamic header recognition
-      const detectedGrids = findAndParseGrids(jsonData, sheetName, 'rocket');
-      grids.push(...detectedGrids);
-    }
-  }
-
-  // Also check the WS DU & LP Pricing sheet for LLPAs section
-  const wsSheet = workbook.Sheets['WS DU & LP Pricing'];
-  if (wsSheet) {
-    const jsonData = XLSX.utils.sheet_to_json(wsSheet, { header: 1 }) as any[][];
-    // Scan for adjustment sections below the rate tables
-    const detectedGrids = findAndParseGrids(jsonData, 'WS DU & LP LLPA', 'rocket');
-    grids.push(...detectedGrids);
-  }
-
-  return grids;
-}
-
-// NEW: Dynamic Header Recognition - scans sheet for LLPA grids
-function findAndParseGrids(jsonData: any[][], sheetName: string, lender: string): AdjustmentGrid[] {
-  const grids: AdjustmentGrid[] = [];
-
-  // Keywords to look for
-  const ficoKeywords = ['FICO', 'Credit Score', 'Score'];
-  const ltvKeywords = ['LTV', 'Loan-to-Value', '%'];
-  const propertyKeywords = ['Condo', 'Investment', 'Second Home', 'Manufactured', '2-4 Unit'];
-  const stateKeywords = ['State', 'FL', 'TX', 'CA', 'NY'];
-
-  for (let rowIdx = 0; rowIdx < Math.min(jsonData.length, 200); rowIdx++) {
-    const row = jsonData[rowIdx];
-    if (!row) continue;
-
-    // Check if this row contains LLPA grid headers
-    for (let colIdx = 0; colIdx < Math.min(row.length, 20); colIdx++) {
-      const cellValue = String(row[colIdx] || '').toLowerCase();
-
-      // Look for FICO/LTV grid start
-      if (ficoKeywords.some(kw => cellValue.includes(kw.toLowerCase()))) {
-        // Found potential FICO row, scan right for LTV buckets
-        const ltvBuckets: string[] = [];
-        for (let scanCol = colIdx + 1; scanCol < Math.min(row.length, colIdx + 15); scanCol++) {
-          const headerCell = String(row[scanCol] || '');
-          if (headerCell.includes('%') || headerCell.includes('LTV') ||
-            headerCell.includes('<') || headerCell.includes('>') ||
-            /\d+\.\d+-\d+\.\d+/.test(headerCell)) {
-            ltvBuckets.push(headerCell);
-          }
-        }
-
-        if (ltvBuckets.length >= 3) {
-          // Found a grid header row, now extract data rows
-          const ficoBuckets: string[] = [];
-          const gridData: (number | null)[][] = [];
-
-          for (let dataRow = rowIdx + 1; dataRow < Math.min(jsonData.length, rowIdx + 20); dataRow++) {
-            const dRow = jsonData[dataRow];
-            if (!dRow) continue;
-
-            const label = String(dRow[colIdx] || '').trim();
-            // Check if this looks like a FICO range
-            if (/\d{3}/.test(label) || />=?\d+/.test(label) || /<=?\d+/.test(label)) {
-              ficoBuckets.push(label);
-              const rowData: (number | null)[] = [];
-              for (let i = 0; i < ltvBuckets.length; i++) {
-                const cell = dRow[colIdx + 1 + i];
-                if (cell === undefined || cell === null || String(cell).toUpperCase() === 'N/A') {
-                  rowData.push(null);
-                } else if (typeof cell === 'number') {
-                  rowData.push(cell);
-                } else {
-                  const parsed = parseFloat(String(cell));
-                  rowData.push(isNaN(parsed) ? null : parsed);
-                }
-              }
-              gridData.push(rowData);
-            } else if (ficoBuckets.length > 0 && !label) {
-              // Empty row after data, grid complete
-              break;
-            }
-          }
-
-          if (ficoBuckets.length >= 3 && gridData.length >= 3) {
-            const grid: AdjustmentGrid = {
-              name: `${sheetName} FICO/LTV Grid`,
-              type: 'fico_ltv',
-              loanPurpose: 'all',
-              axes: { y: ficoBuckets, x: ltvBuckets },
-              data: gridData,
-            };
-            grids.push(grid);
-            console.log(`[PARSER] Found grid in ${sheetName}: ${ficoBuckets.length} FICO x ${ltvBuckets.length} LTV`);
-          }
-        }
-      }
-
-      // Look for property type adjustments
-      if (propertyKeywords.some(kw => cellValue.includes(kw.toLowerCase()))) {
-        // This might be a property adjustment section
-        // Simpler processing - single row adjustments
-      }
-    }
-  }
-
-  return grids;
-}
-
-// NEW: Parse Windsor/PRMG sheets dynamically (no fixed cell mapping)
-function parseGenericLLPAs(workbook: XLSX.WorkBook): AdjustmentGrid[] {
-  const grids: AdjustmentGrid[] = [];
-
-  for (const sheetName of workbook.SheetNames) {
-    if (sheetName.toLowerCase().includes('llpa') ||
-      sheetName.toLowerCase().includes('adjustment')) {
-      const sheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-      console.log(`[PARSER] Generic ${sheetName} has ${jsonData.length} rows`);
-
-      const detectedGrids = findAndParseGrids(jsonData, sheetName, 'generic');
-      grids.push(...detectedGrids);
-    }
-  }
-
-  return grids;
-}
-
+// Rocket parser - returns all rates from all sheets
 function parseRocketSheet(workbook: XLSX.WorkBook): ParsedRate[] {
-  const rates: ParsedRate[] = [];
-
-  const conventionalSheet = workbook.Sheets['WS DU & LP Pricing'];
-  if (conventionalSheet) {
-    const jsonData = XLSX.utils.sheet_to_json(conventionalSheet, { header: 1 }) as any[][];
-    console.log(`[PARSER] Rocket WS DU & LP Pricing has ${jsonData.length} rows`);
-
-    const conventionalRanges: CellRange[] = [
-      { startRow: 4, endRow: 38, rateCol: colToIndex('C'), price15Col: colToIndex('D'), price30Col: colToIndex('E'), price45Col: colToIndex('F'), loanTerm: '30yr', loanType: 'conventional' },
-      { startRow: 8, endRow: 32, rateCol: colToIndex('H'), price15Col: colToIndex('I'), price30Col: colToIndex('J'), price45Col: colToIndex('K'), loanTerm: '25yr', loanType: 'conventional' },
-      { startRow: 4, endRow: 38, rateCol: colToIndex('L'), price15Col: colToIndex('M'), price30Col: colToIndex('N'), price45Col: colToIndex('O'), loanTerm: '20yr', loanType: 'conventional' },
-      { startRow: 4, endRow: 38, rateCol: colToIndex('Q'), price15Col: colToIndex('R'), price30Col: colToIndex('S'), price45Col: colToIndex('T'), loanTerm: '15yr', loanType: 'conventional' },
-      { startRow: 40, endRow: 72, rateCol: colToIndex('B'), price15Col: colToIndex('C'), price30Col: colToIndex('D'), price45Col: colToIndex('E'), loanTerm: '10yr', loanType: 'conventional' },
-    ];
-
-    for (const range of conventionalRanges) {
-      parseRatesFromRange(jsonData, range, rates);
-    }
-  }
-
-  const fhaSheet = workbook.Sheets['FHA Full Doc Pricing'];
-  if (fhaSheet) {
-    const jsonData = XLSX.utils.sheet_to_json(fhaSheet, { header: 1 }) as any[][];
-    console.log(`[PARSER] Rocket FHA Full Doc Pricing has ${jsonData.length} rows`);
-
-    const fhaRanges: CellRange[] = [
-      { startRow: 6, endRow: 38, rateCol: colToIndex('C'), price15Col: colToIndex('D'), price30Col: colToIndex('E'), price45Col: colToIndex('F'), loanTerm: '30yr', loanType: 'fha' },
-      { startRow: 6, endRow: 35, rateCol: colToIndex('H'), price15Col: colToIndex('I'), price30Col: colToIndex('J'), price45Col: colToIndex('K'), loanTerm: '25yr', loanType: 'fha' },
-      { startRow: 6, endRow: 38, rateCol: colToIndex('M'), price15Col: colToIndex('N'), price30Col: colToIndex('O'), price45Col: colToIndex('P'), loanTerm: '20yr', loanType: 'fha' },
-      { startRow: 6, endRow: 38, rateCol: colToIndex('R'), price15Col: colToIndex('S'), price30Col: colToIndex('T'), price45Col: colToIndex('U'), loanTerm: '15yr', loanType: 'fha' },
-    ];
-
-    for (const range of fhaRanges) {
-      parseRatesFromRange(jsonData, range, rates);
-    }
-  }
-
-  const vaSheet = workbook.Sheets['VA Full Doc Pricing'];
-  if (vaSheet) {
-    const jsonData = XLSX.utils.sheet_to_json(vaSheet, { header: 1 }) as any[][];
-    console.log(`[PARSER] Rocket VA Full Doc Pricing has ${jsonData.length} rows`);
-
-    const vaRanges: CellRange[] = [
-      { startRow: 6, endRow: 38, rateCol: colToIndex('C'), price15Col: colToIndex('D'), price30Col: colToIndex('E'), price45Col: colToIndex('F'), loanTerm: '30yr', loanType: 'va' },
-      { startRow: 6, endRow: 35, rateCol: colToIndex('H'), price15Col: colToIndex('I'), price30Col: colToIndex('J'), price45Col: colToIndex('K'), loanTerm: '25yr', loanType: 'va' },
-      { startRow: 6, endRow: 38, rateCol: colToIndex('M'), price15Col: colToIndex('N'), price30Col: colToIndex('O'), price45Col: colToIndex('P'), loanTerm: '20yr', loanType: 'va' },
-      { startRow: 6, endRow: 38, rateCol: colToIndex('R'), price15Col: colToIndex('S'), price30Col: colToIndex('T'), price45Col: colToIndex('U'), loanTerm: '15yr', loanType: 'va' },
-    ];
-
-    for (const range of vaRanges) {
-      parseRatesFromRange(jsonData, range, rates);
-    }
-  }
-
-  return rates;
-}
-
-function parseELendSheet(workbook: XLSX.WorkBook): ParsedRate[] {
-  const rates: ParsedRate[] = [];
-
-  // Parse FHA and VA from GNMA tab per E Lend guide
-  const gnmaSheet = workbook.Sheets['GNMA'];
-  if (gnmaSheet) {
-    const jsonData = XLSX.utils.sheet_to_json(gnmaSheet, { header: 1 }) as any[][];
-    console.log(`[PARSER] E Lend GNMA has ${jsonData.length} rows`);
-
-    const fhaRanges: CellRange[] = [
-      { startRow: 7, endRow: 33, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '30yr', loanType: 'fha' },
-      { startRow: 7, endRow: 33, rateCol: colToIndex('K'), price15Col: colToIndex('L'), price30Col: colToIndex('M'), price45Col: colToIndex('N'), loanTerm: '25yr', loanType: 'fha' },
-      { startRow: 35, endRow: 61, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '15yr', loanType: 'fha' },
-      { startRow: 35, endRow: 61, rateCol: colToIndex('K'), price15Col: colToIndex('L'), price30Col: colToIndex('M'), price45Col: colToIndex('N'), loanTerm: '10yr', loanType: 'fha' },
-    ];
-
-    const vaRanges: CellRange[] = [
-      { startRow: 119, endRow: 145, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '30yr', loanType: 'va' },
-      { startRow: 119, endRow: 145, rateCol: colToIndex('K'), price15Col: colToIndex('L'), price30Col: colToIndex('M'), price45Col: colToIndex('N'), loanTerm: '25yr', loanType: 'va' },
-      { startRow: 119, endRow: 145, rateCol: colToIndex('U'), price15Col: colToIndex('V'), price30Col: colToIndex('W'), price45Col: colToIndex('X'), loanTerm: '20yr', loanType: 'va' },
-      { startRow: 147, endRow: 173, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '15yr', loanType: 'va' },
-      { startRow: 147, endRow: 173, rateCol: colToIndex('K'), price15Col: colToIndex('L'), price30Col: colToIndex('M'), price45Col: colToIndex('N'), loanTerm: '10yr', loanType: 'va' },
-    ];
-
-    for (const range of fhaRanges) {
-      parseRatesFromRange(jsonData, range, rates);
-    }
-    for (const range of vaRanges) {
-      parseRatesFromRange(jsonData, range, rates);
-    }
-  }
-
-  // Parse Conventional from FHLMC-FNMA tab
-  const conventionalSheet = workbook.Sheets['FHLMC-FNMA'];
-  if (conventionalSheet) {
-    const jsonData = XLSX.utils.sheet_to_json(conventionalSheet, { header: 1 }) as any[][];
-    console.log(`[PARSER] E Lend FHLMC-FNMA has ${jsonData.length} rows`);
-
-    const freddieMacRanges: CellRange[] = [
-      { startRow: 7, endRow: 32, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '30yr', loanType: 'conventional' },
-      { startRow: 7, endRow: 32, rateCol: colToIndex('U'), price15Col: colToIndex('V'), price30Col: colToIndex('W'), price45Col: colToIndex('X'), loanTerm: '20yr', loanType: 'conventional' },
-      { startRow: 35, endRow: 60, rateCol: colToIndex('F'), price15Col: colToIndex('G'), price30Col: colToIndex('H'), price45Col: colToIndex('I'), loanTerm: '15yr', loanType: 'conventional' },
-    ];
-
-    const fannieMaeRanges: CellRange[] = [
-      { startRow: 63, endRow: 88, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '30yr', loanType: 'conventional' },
-      { startRow: 63, endRow: 88, rateCol: colToIndex('U'), price15Col: colToIndex('V'), price30Col: colToIndex('W'), price45Col: colToIndex('X'), loanTerm: '20yr', loanType: 'conventional' },
-      { startRow: 91, endRow: 116, rateCol: colToIndex('A'), price15Col: colToIndex('B'), price30Col: colToIndex('C'), price45Col: colToIndex('D'), loanTerm: '15yr', loanType: 'conventional' },
-    ];
-
-    console.log(`[PARSER] Parsing Freddie Mac conventional grids`);
-    for (const range of freddieMacRanges) {
-      parseRatesFromRange(jsonData, range, rates);
-    }
-    console.log(`[PARSER] Parsing Fannie Mae conventional grids`);
-    for (const range of fannieMaeRanges) {
-      parseRatesFromRange(jsonData, range, rates);
-    }
-  }
-
-  return rates;
-}
-
-function parseGenericSheet(workbook: XLSX.WorkBook, lenderType: string = 'generic'): ParsedRate[] {
   const rates: ParsedRate[] = [];
 
   for (const sheetName of workbook.SheetNames) {
@@ -552,62 +290,49 @@ function parseGenericSheet(workbook: XLSX.WorkBook, lenderType: string = 'generi
     let currentLoanTerm = "30yr";
     let currentLoanType = "conventional";
 
-    if (/gnma/i.test(sheetName)) currentLoanType = "fha";
-    if (/fhlmc|fnma|freddie|fannie/i.test(sheetName)) currentLoanType = "conventional";
+    if (/15\s*year/i.test(sheetName)) currentLoanTerm = "15yr";
+    if (/20\s*year/i.test(sheetName)) currentLoanTerm = "20yr";
+    if (/25\s*year/i.test(sheetName)) currentLoanTerm = "25yr";
+    if (/30\s*year/i.test(sheetName)) currentLoanTerm = "30yr";
+
     if (/fha/i.test(sheetName)) currentLoanType = "fha";
     if (/\bva\b/i.test(sheetName)) currentLoanType = "va";
+    if (/jumbo/i.test(sheetName)) currentLoanType = "jumbo";
 
-    for (let rowIdx = 0; rowIdx < jsonData.length; rowIdx++) {
-      const row = jsonData[rowIdx];
-      if (!row || row.length === 0) continue;
+    for (let i = 0; i < jsonData.length; i++) {
+      const row = jsonData[i];
+      if (!row) continue;
 
-      // Dynamic scanning: Look for a rate in first 10 columns
-      // Rate criterion: Number between 2.5 and 12.5
-      let rateFound = false;
+      for (let j = 0; j < row.length; j++) {
+        const cell = row[j];
+        if (cell && typeof cell === 'string' && /rate/i.test(cell)) {
+          // Found a potential header row
+          const headerRow = row;
+          let rateCol = -1;
+          let price15Col = -1;
+          let price30Col = -1;
+          let price45Col = -1;
 
-      for (let colIdx = 0; colIdx < Math.min(row.length, 10); colIdx++) {
-        const cell = row[colIdx];
-        if (typeof cell === 'number' && cell >= 2.5 && cell <= 12.5) {
-          // Found potential rate. Check if next columns are prices.
-          // Prices must be number > 80 (raw price) OR small number (points/rebate)
-          // PRMG/Generic often has Rate | 15 Day | 30 Day | 45 Day
+          for (let k = 0; k < headerRow.length; k++) {
+            const header = String(headerRow[k] || "").toLowerCase();
+            if (header.includes("rate") && !header.includes("day")) rateCol = k;
+            if (header.includes("15") && header.includes("day")) price15Col = k;
+            if (header.includes("30") && header.includes("day")) price30Col = k;
+            if (header.includes("45") && header.includes("day")) price45Col = k;
+          }
 
-          let p1 = row[colIdx + 1];
-          let p2 = row[colIdx + 2];
-          let p3 = row[colIdx + 3];
-
-          // Helper to safely parse
-          const parseP = (v: any) => (typeof v === 'number' ? v : parseFloat(String(v)));
-          let price15 = parseP(p1);
-          let price30 = parseP(p2);
-          let price45 = parseP(p3);
-
-          // If 15/30 are invalid, maybe this isn't a rate row?
-          // Condition: At least one price must be valid number
-          if (isNaN(price15) && isNaN(price30)) continue;
-
-          // Normalize
-          price15 = normalizePrice(price15, lenderType);
-          price30 = normalizePrice(price30, lenderType);
-          price45 = normalizePrice(price45, lenderType);
-
-          // Validation: Price > 80 means it's a valid price (after normalization)
-          // We allow one to be missing/NaN, fallback to others
-          if ((!isNaN(price15) && price15 > 80) || (!isNaN(price30) && price30 > 80)) {
-            const validPrice15 = !isNaN(price15) && price15 > 80 ? price15 : (!isNaN(price30) ? price30 : 100);
-            const validPrice30 = !isNaN(price30) && price30 > 80 ? price30 : validPrice15;
-            const validPrice45 = !isNaN(price45) && price45 > 80 ? price45 : validPrice30;
-
-            rates.push({
-              rate: cell,
-              price15Day: validPrice15,
-              price30Day: validPrice30,
-              price45Day: validPrice45,
+          if (rateCol >= 0 && price15Col >= 0) {
+            parseRatesFromRange(jsonData, {
+              startRow: i + 1,
+              endRow: Math.min(i + 50, jsonData.length - 1),
+              rateCol,
+              price15Col,
+              price30Col: price30Col >= 0 ? price30Col : price15Col,
+              price45Col: price45Col >= 0 ? price45Col : price15Col,
               loanTerm: currentLoanTerm,
               loanType: currentLoanType,
-            });
-            rateFound = true;
-            break; // Found the rate for this row, stop scanning columns
+            }, rates);
+            break;
           }
         }
       }
@@ -617,173 +342,276 @@ function parseGenericSheet(workbook: XLSX.WorkBook, lenderType: string = 'generi
   return rates;
 }
 
-function detectLenderType(workbook: XLSX.WorkBook): 'rocket' | 'elend' | 'windsor' | 'prmg' | 'generic' {
-  const sheetNames = workbook.SheetNames.map(s => s.toLowerCase());
-
-  if (sheetNames.includes('ws du & lp pricing') && sheetNames.includes('ws rate sheet summary')) {
-    console.log('[PARSER] Detected Rocket rate sheet structure');
-    return 'rocket';
-  }
-
-  if (sheetNames.includes('gnma') && sheetNames.includes('fhlmc-fnma')) {
-    console.log('[PARSER] Detected E Lend rate sheet structure');
-    return 'elend';
-  }
-
-  if (sheetNames.some(s => s.includes('jumbo') && s.includes('llpa'))) {
-    console.log('[PARSER] Detected Windsor rate sheet structure');
-    return 'windsor';
-  }
-
-  if (sheetNames.some(s => s.includes('agency') || s.includes('non-qm'))) {
-    console.log('[PARSER] Detected PRMG rate sheet structure');
-    return 'prmg';
-  }
-
-  // Fallback: Check if filename implies lender (passed down via some other means? 
-  // Actually, we can just rely on the wrapper function passing it, but detectLenderType only has workbook.
-  // We will handle filename detection IN parseExcelRateSheet before calling this.)
-
-  console.log('[PARSER] Using generic parser for unknown structure');
-  return 'generic';
+function parseRocketLLPAs(workbook: XLSX.WorkBook): AdjustmentGrid[] {
+  return [];
 }
 
-// Helper for PRMG Math
-function normalizePrice(price: number, lenderType: string): number {
-  if (lenderType === 'prmg') {
-    // PRMG: Negative means Rebate (>100), Positive means Cost (<100)
-    // Example: -4.000 -> 104.000
-    // Example:  0.500 -> 99.500
-    if (price < 0) {
-      // 20 is a safe threshold (e.g. -4 pts)
-      if (Math.abs(price) < 20) return 100 + Math.abs(price);
-    } else if (price > 0 && price < 20) {
-      // Positive price < 20 means cost in points, so 100 - price
-      return 100 - price;
+// E-Lend parser
+function parseELendSheet(workbook: XLSX.WorkBook): ParsedRate[] {
+  const rates: ParsedRate[] = [];
+
+  for (const sheetName of workbook.SheetNames) {
+    if (sheetName.includes('LLPA')) continue;
+
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
+    let currentLoanTerm = "30yr";
+    let currentLoanType = "conventional";
+
+    if (/15\s*yr/i.test(sheetName) || /15\s*year/i.test(sheetName)) currentLoanTerm = "15yr";
+    if (/20\s*yr/i.test(sheetName) || /20\s*year/i.test(sheetName)) currentLoanTerm = "20yr";
+    if (/30\s*yr/i.test(sheetName) || /30\s*year/i.test(sheetName)) currentLoanTerm = "30yr";
+
+    if (/fha/i.test(sheetName)) currentLoanType = "fha";
+    if (/\bva\b/i.test(sheetName)) currentLoanType = "va";
+    if (/jumbo/i.test(sheetName)) currentLoanType = "jumbo";
+
+    for (let i = 0; i < jsonData.length; i++) {
+      const row = jsonData[i];
+      if (!row) continue;
+
+      for (let j = 0; j < row.length; j++) {
+        const cell = row[j];
+        if (cell && typeof cell === 'string' && /rate/i.test(cell)) {
+          const headerRow = row;
+          let rateCol = -1;
+          let price15Col = -1;
+          let price30Col = -1;
+
+          for (let k = 0; k < headerRow.length; k++) {
+            const header = String(headerRow[k] || "").toLowerCase();
+            if (header.includes("rate") && !header.includes("day")) rateCol = k;
+            if (header.includes("15") && (header.includes("day") || header.includes("lock"))) price15Col = k;
+            if (header.includes("30") && (header.includes("day") || header.includes("lock"))) price30Col = k;
+          }
+
+          if (rateCol >= 0 && (price15Col >= 0 || price30Col >= 0)) {
+            parseRatesFromRange(jsonData, {
+              startRow: i + 1,
+              endRow: Math.min(i + 50, jsonData.length - 1),
+              rateCol,
+              price15Col: price15Col >= 0 ? price15Col : price30Col,
+              price30Col: price30Col >= 0 ? price30Col : price15Col,
+              price45Col: price30Col >= 0 ? price30Col : price15Col,
+              loanTerm: currentLoanTerm,
+              loanType: currentLoanType,
+            }, rates);
+            break;
+          }
+        }
+      }
     }
-  } else if (price < 20 && price > -20) {
-    // Standard Logic for other lenders:
-    // If price is small (e.g. 1.5 or -1.5), it's likely points.
-    // Usually positive points = cost (100 - x)
-    // But sometimes negative points = credit (100 + x)?
-    // User snippet says: "else if (price < 20) { price = 100 - price; }"
-    // We'll follow that exactly for positive small numbers.
-    if (price > 0) return 100 - price;
   }
 
-  return price;
+  return rates;
+}
+
+// Generic parser - fallback for unknown lenders
+function parseGenericSheet(workbook: XLSX.WorkBook, lenderType: string): ParsedRate[] {
+  const rates: ParsedRate[] = [];
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
+    let currentLoanTerm = "30yr";
+    let currentLoanType = "conventional";
+
+    if (/15/i.test(sheetName)) currentLoanTerm = "15yr";
+    if (/20/i.test(sheetName)) currentLoanTerm = "20yr";
+    if (/25/i.test(sheetName)) currentLoanTerm = "25yr";
+    if (/30/i.test(sheetName)) currentLoanTerm = "30yr";
+
+    if (/fha/i.test(sheetName)) currentLoanType = "fha";
+    if (/\bva\b/i.test(sheetName)) currentLoanType = "va";
+    if (/jumbo/i.test(sheetName)) currentLoanType = "jumbo";
+
+    for (let i = 0; i < jsonData.length; i++) {
+      const row = jsonData[i];
+      if (!row) continue;
+
+      for (let j = 0; j < row.length; j++) {
+        const cell = row[j];
+        if (cell && typeof cell === 'string' && /rate/i.test(cell)) {
+          const headerRow = row;
+          let rateCol = -1;
+          let price15Col = -1;
+          let price30Col = -1;
+          let price45Col = -1;
+
+          for (let k = 0; k < headerRow.length; k++) {
+            const header = String(headerRow[k] || "").toLowerCase();
+            if (header.includes("rate") && !header.includes("day")) rateCol = k;
+            if (header.includes("15") && header.includes("day")) price15Col = k;
+            if (header.includes("30") && header.includes("day")) price30Col = k;
+            if (header.includes("45") && header.includes("day")) price45Col = k;
+          }
+
+          if (rateCol >= 0 && price15Col >= 0) {
+            parseRatesFromRange(jsonData, {
+              startRow: i + 1,
+              endRow: Math.min(i + 50, jsonData.length - 1),
+              rateCol,
+              price15Col,
+              price30Col: price30Col >= 0 ? price30Col : price15Col,
+              price45Col: price45Col >= 0 ? price45Col : price15Col,
+              loanTerm: currentLoanTerm,
+              loanType: currentLoanType,
+            }, rates);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  return rates;
+}
+
+// Generic LLPA parser
+function parseGenericLLPAs(workbook: XLSX.WorkBook): AdjustmentGrid[] {
+  return [];
 }
 
 export async function parseExcelRateSheet(fileData: string, lenderName: string): Promise<ParsedRateSheet> {
   try {
     const base64Data = fileData.replace(/^data:.*?;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-
-    console.log(`[PARSER] Parsing Excel for ${lenderName}, sheets: ${workbook.SheetNames.join(', ')}`);
-
-    let lenderType = detectLenderType(workbook);
-
-    // Override detection via filename if generic
-    if (lenderType === 'generic') {
-      const fName = lenderName.toLowerCase();
-      if (fName.includes('prmg') || fName.includes('agency') || fName.includes('wholesale')) lenderType = 'prmg';
-      else if (fName.includes('windsor')) lenderType = 'windsor';
-      else if (fName.includes('elend')) lenderType = 'elend';
-      else if (fName.includes('rocket')) lenderType = 'rocket';
-
-      if (lenderType !== 'generic') {
-        console.log(`[PARSER] Lender detected from name '${lenderName}': ${lenderType}`);
-      }
-    }
+    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
 
     let rates: ParsedRate[] = [];
     let adjustments: AdjustmentGrid[] = [];
 
-    if (lenderType === 'prmg') {
-      console.log("[PRMG] Initiating specific PRMG parser logic...");
+    const lowerLenderName = lenderName.toLowerCase();
+    let lenderType = 'generic';
 
-      // 1. Iterate through all sheets
+    if (lowerLenderName.includes('rocket')) lenderType = 'rocket';
+    else if (lowerLenderName.includes('elend') || lowerLenderName.includes('e lend') || lowerLenderName.includes('e-lend')) lenderType = 'elend';
+    else if (lowerLenderName.includes('windsor')) lenderType = 'windsor';
+    else if (lowerLenderName.includes('prmg') || lowerLenderName.includes('paramount')) lenderType = 'prmg';
+
+    console.log(`[PARSER] Detected lender type: ${lenderType} for ${lenderName}`);
+
+    // PRMG-specific parsing
+    if (lenderType === 'prmg') {
+      console.log("[PARSER] Using PRMG-specific parsing logic");
+
+      // 1. Scan for rate tables
       for (const sheetName of workbook.SheetNames) {
         // Skip adjustment sheets
-        if (sheetName.includes('ADJ') || sheetName.includes('SPEC') || sheetName.includes('NOOSH')) continue;
+        if (sheetName.includes('ADJ') || sheetName.includes('Adj')) {
+          console.log(`[PRMG] Skipping adjustment sheet: ${sheetName}`);
+          continue;
+        }
 
         const sheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
 
+        console.log(`[PRMG] Processing sheet: ${sheetName} (${rows.length} rows)`);
+
         // Determine loan type from sheet name
         let loanType = 'conventional';
-        if (sheetName.toLowerCase().includes('govt')) loanType = 'fha'; // or VA
-        if (sheetName.toLowerCase().includes('jumbo')) loanType = 'conventional';
+        if (/govt|fha|va/i.test(sheetName)) loanType = 'government';
+        if (/fha/i.test(sheetName)) loanType = 'fha';
+        if (/va/i.test(sheetName)) loanType = 'va';
+        if (/jumbo/i.test(sheetName)) loanType = 'jumbo';
 
-        console.log(`[PRMG] Processing sheet: ${sheetName}, rows: ${rows.length}`);
-
-        // 2. Scan for Base Rate Tables
-        // PRMG format: Header row has "Rate", 15, 30 (numeric lock periods)
+        // Scan for header row with numeric day columns
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
           if (!row) continue;
 
-          // Find "Rate" text in row
-          const rateColIndex = row.findIndex(cell => typeof cell === 'string' && cell.trim() === 'Rate');
+          let rateCol = -1;
+          let price15Col = -1;
+          let price30Col = -1;
+          let price45Col = -1;
 
-          if (rateColIndex !== -1) {
-            // Found header. Check if next cells are 15 and 30 (lock periods)
-            const lock15Index = rateColIndex + 1;
-            const lock30Index = rateColIndex + 2;
+          // Look for "Rate" text header OR numeric columns (15.0, 30.0, 45.0)
+          for (let j = 0; j < row.length; j++) {
+            const cell = row[j];
+            const cellStr = String(cell || "").trim().toLowerCase();
 
-            // Verify structure: cell should be 15 or 30
-            if (row[lock15Index] == 15 && row[lock30Index] == 30) {
-              console.log(`[PRMG] Found Rate Table on Sheet: ${sheetName}, Header Row: ${i}, RateCol: ${rateColIndex}`);
+            // Rate column
+            if (cellStr === 'rate' || cellStr === 'rates') {
+              rateCol = j;
+            }
 
-              // Parse the Rates below this header
-              for (let j = i + 1; j < rows.length; j++) {
-                const rateRow = rows[j];
-                if (!rateRow) break;
+            // PRMG uses numeric headers: 15.0, 30.0, 45.0
+            if (typeof cell === 'number') {
+              if (cell === 15 || cell === 15.0) price15Col = j;
+              if (cell === 30 || cell === 30.0) price30Col = j;
+              if (cell === 45 || cell === 45.0) price45Col = j;
+            }
 
-                const rawRateCell = rateRow[rateColIndex];
+            // Also check text versions
+            if (cellStr === '15' || cellStr === '15.0' || cellStr === '15 day' || cellStr === '15day') price15Col = j;
+            if (cellStr === '30' || cellStr === '30.0' || cellStr === '30 day' || cellStr === '30day') price30Col = j;
+            if (cellStr === '45' || cellStr === '45.0' || cellStr === '45 day' || cellStr === '45day') price45Col = j;
+          }
 
-                // Stop if we hit another header (Rate text) or empty row
-                if (typeof rawRateCell === 'string' && rawRateCell.trim() === 'Rate') break;
-                if (rawRateCell === null || rawRateCell === undefined) break;
+          // Found valid header
+          if (rateCol >= 0 && (price15Col >= 0 || price30Col >= 0)) {
+            console.log(`[PRMG] Found rate table at row ${i}, sheet: ${sheetName}`);
+            console.log(`[PRMG]   Rate col: ${rateCol}, 15-day col: ${price15Col}, 30-day col: ${price30Col}, 45-day col: ${price45Col}`);
 
-                // Parse rate and prices
-                let rawRate = typeof rawRateCell === 'number' ? rawRateCell : parseFloat(rawRateCell);
-                let rawPrice15 = typeof rateRow[lock15Index] === 'number' ? rateRow[lock15Index] : parseFloat(rateRow[lock15Index]);
-                let rawPrice30 = typeof rateRow[lock30Index] === 'number' ? rateRow[lock30Index] : parseFloat(rateRow[lock30Index]);
+            // Parse data rows below header
+            for (let dataRow = i + 1; dataRow < Math.min(i + 100, rows.length); dataRow++) {
+              const dataRowCells = rows[dataRow];
+              if (!dataRowCells) continue;
 
-                if (isNaN(rawRate)) continue;
+              let rawRate = dataRowCells[rateCol];
 
-                // PRMG Normalization:
-                // 1. Rate is decimal (0.07125) -> convert to 7.125
-                if (rawRate < 1) rawRate = rawRate * 100;
+              // CRITICAL FIX #1: Convert decimal rates (0.07125 -> 7.125)
+              if (typeof rawRate === 'number' && rawRate < 1) {
+                rawRate = rawRate * 100;
+              } else if (typeof rawRate === 'string') {
+                rawRate = parseFloat(rawRate);
+                if (rawRate < 1 && rawRate > 0) {
+                  rawRate = rawRate * 100;
+                }
+              }
 
-                // 2. Price Logic for PRMG:
-                //    Negative (e.g. -4.50) = REBATE (Yield). Base Price = 100 + 4.5 = 104.5
-                //    Positive small (e.g. 0.50) = COST (Discount). Base Price = 100 - 0.5 = 99.5
-                //    Positive large (e.g. 98.5) = Already a valid price, use as-is
-                const normalize = (p: number) => {
-                  if (isNaN(p)) return 100;
-                  if (p < 0) {
-                    // Negative = Rebate (e.g., -4.0 -> 104.0)
-                    return 100 + Math.abs(p);
-                  } else if (p < 20) {
-                    // Small positive = Cost/Points (e.g., 0.5 -> 99.5)
-                    return 100 - p;
-                  } else {
-                    // Large positive = Already a valid price (e.g., 98.5 -> 98.5)
-                    return p;
-                  }
-                };
+              const rateValue = typeof rawRate === 'number' ? rawRate : parseFloat(String(rawRate || ''));
 
-                const finalPrice15 = normalize(rawPrice15);
-                const finalPrice30 = normalize(rawPrice30);
+              if (isNaN(rateValue) || rateValue < 3 || rateValue > 12) continue;
 
+              // Get prices
+              let rawPrice15 = dataRowCells[price15Col >= 0 ? price15Col : price30Col];
+              let rawPrice30 = dataRowCells[price30Col >= 0 ? price30Col : price15Col];
+              let rawPrice45 = dataRowCells[price45Col >= 0 ? price45Col : price30Col];
+
+              // CRITICAL FIX #2: Invert PRMG pricing (negative values are REBATES)
+              // PRMG lists prices as negative when they're lender credits
+              // Example: -4.077 means 104.077 (lender pays borrower)
+              const convertPrmgPrice = (rawPrice: any): number => {
+                let price = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice || ''));
+                if (isNaN(price)) return NaN;
+
+                // PRMG uses negative for rebate, positive for cost
+                // We need to convert to standard pricing where 100 = par
+                // -4.077 -> 100 + 4.077 = 104.077
+                // +2.5 -> 100 - 2.5 = 97.5
+                if (price < 0) {
+                  return 100 + Math.abs(price);
+                } else if (price > 0 && price < 50) {
+                  // This is a cost to borrower
+                  return 100 - price;
+                }
+                return price;
+              };
+
+              const finalPrice15 = convertPrmgPrice(rawPrice15);
+              const finalPrice30 = convertPrmgPrice(rawPrice30);
+              const finalPrice45 = convertPrmgPrice(rawPrice45);
+
+              // Validate converted prices are in reasonable range
+              if (!isNaN(finalPrice15) && finalPrice15 > 90 && finalPrice15 < 110) {
                 rates.push({
-                  rate: rawRate,
+                  rate: rateValue,
                   price15Day: finalPrice15,
-                  price30Day: finalPrice30,
-                  price45Day: finalPrice30, // Fallback to 30-day
+                  price30Day: !isNaN(finalPrice30) && finalPrice30 > 90 && finalPrice30 < 110 ? finalPrice30 : finalPrice15,
+                  price45Day: !isNaN(finalPrice45) && finalPrice45 > 90 && finalPrice45 < 110 ? finalPrice45 : finalPrice30,
                   loanTerm: "30yr", // Could parse from sheet structure
                   loanType: loanType
                 });
@@ -854,6 +682,53 @@ export async function parseExcelRateSheet(fileData: string, lenderName: string):
                   data: gridData
                 });
                 console.log(`[PRMG] Parsed Adjustment Grid: ${sheetName} Row ${i}`);
+              }
+            }
+          }
+
+          // CRITICAL FIX #3: Parse state adjustments with semicolon handling
+          if (firstCell.includes("state") || /group \d/.test(firstCell)) {
+            // Look for state group definitions like: "* Group 3; ,AK,AL,AR,FL..."
+            for (let j = 0; j < row.length; j++) {
+              const cell = String(row[j] || "");
+
+              // Split by both comma AND semicolon
+              const states = cell.split(/[,;]+/)
+                .map(s => s.trim())
+                .filter(s => s.length === 2 && /^[A-Z]{2}$/.test(s));
+
+              if (states.length > 0) {
+                // Find the adjustment value (usually in next column or row)
+                let adjValue = 0;
+
+                // Check next cell in row for numeric value
+                if (j + 1 < row.length) {
+                  const nextCell = parseFloat(row[j + 1]);
+                  if (!isNaN(nextCell)) adjValue = nextCell;
+                }
+
+                // Check same column in next row
+                if (adjValue === 0 && i + 1 < rows.length) {
+                  const nextRow = rows[i + 1];
+                  if (nextRow && nextRow[j]) {
+                    const val = parseFloat(nextRow[j]);
+                    if (!isNaN(val)) adjValue = val;
+                  }
+                }
+
+                if (adjValue !== 0) {
+                  adjustments.push({
+                    name: `PRMG State Adjustment - ${sheetName}`,
+                    type: 'state',
+                    loanPurpose: 'all',
+                    axes: {
+                      y: states,
+                      x: ['Adjustment']
+                    },
+                    data: states.map(() => [adjValue])
+                  });
+                  console.log(`[PRMG] Parsed State Adjustment: ${states.join(',')} = ${adjValue}`);
+                }
               }
             }
           }

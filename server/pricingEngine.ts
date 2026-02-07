@@ -246,6 +246,34 @@ function lookupPropertyAdjustment(
   };
 }
 
+// CRITICAL FIX #3: State adjustment lookup with semicolon support
+function lookupStateAdjustment(
+  grid: AdjustmentGrid,
+  state: string
+): number {
+  if (grid.type !== 'state') return 0;
+
+  const stateUpper = state.toUpperCase();
+
+  // Find state in Y axis (row headers)
+  for (let i = 0; i < grid.axes.y.length; i++) {
+    const stateLabel = grid.axes.y[i].toUpperCase();
+
+    // Check if this row contains our state
+    // Split by comma AND semicolon to handle "Group 3; ,AK,AL,AR" format
+    const states = stateLabel.split(/[,;]+/)
+      .map(s => s.trim())
+      .filter(s => /^[A-Z]{2}$/.test(s));
+
+    if (states.includes(stateUpper)) {
+      const adjValue = grid.data[i]?.[0];
+      return adjValue !== null && adjValue !== undefined ? adjValue : 0;
+    }
+  }
+
+  return 0;
+}
+
 // NEW: Calculate total adjustments from REAL parsed grids
 function calculateTotalAdjustments(
   params: LoanParameters,
@@ -255,20 +283,23 @@ function calculateTotalAdjustments(
   const breakdown: AdjustmentBreakdown[] = [];
 
   const ficoRange = creditScoreToFicoRange(params.creditScore);
-  const fico = (ficoRange.min + ficoRange.max) / 2;  // Use midpoint
+  const fico = (ficoRange.min + ficoRange.max) / 2;
   const ltv = (params.loanAmount / params.propertyValue) * 100;
 
-  // Determine loan purpose for filtering grids
-  let loanPurposeType: 'purchase' | 'rt_refi' | 'co_refi' = 'purchase';
-  if (params.loanPurpose === 'refinance') {
-    loanPurposeType = 'rt_refi';
-  } else if (params.loanPurpose === 'refinance-cashout') {
-    loanPurposeType = 'co_refi';
-  }
+  // Map loan purpose to grid types
+  const purposeMap: Record<string, AdjustmentGrid['loanPurpose']> = {
+    'purchase': 'purchase',
+    'refinance': 'rt_refi',
+    'refinance-cashout': 'co_refi',
+  };
+  const gridPurpose = purposeMap[params.loanPurpose] || 'all';
+
+  console.log(`[PRICING] Calculating adjustments for FICO=${fico}, LTV=${ltv.toFixed(2)}%, Purpose=${gridPurpose}`);
 
   for (const grid of grids) {
-    // Filter by loan purpose
-    if (grid.loanPurpose && grid.loanPurpose !== 'all' && grid.loanPurpose !== loanPurposeType) {
+    // Skip grids that don't match the loan purpose
+    if (grid.loanPurpose && grid.loanPurpose !== 'all' && grid.loanPurpose !== gridPurpose) {
+      console.log(`[PRICING] Skipping grid "${grid.name}" (purpose mismatch: ${grid.loanPurpose} vs ${gridPurpose})`);
       continue;
     }
 
@@ -281,336 +312,249 @@ function calculateTotalAdjustments(
           lookupKey: `FICO ${result.rowLabel} x LTV ${result.colLabel}`,
           adjustment: result.value,
         });
-        console.log(`[PRICING] ${grid.name}: FICO ${fico} (${result.rowLabel}) x LTV ${ltv.toFixed(1)}% (${result.colLabel}) = ${result.value}`);
+        console.log(`[PRICING] Grid "${grid.name}": ${result.value} (${result.rowLabel} x ${result.colLabel})`);
       }
-    }
-
-    if (grid.type === 'property') {
-      const propType = params.propertyType.toLowerCase();
-      // Only apply property adjustments for non-standard properties
-      if (propType !== 'single_family' && propType !== 'single-family') {
-        const result = lookupPropertyAdjustment(grid, propType, ltv);
-        if (result) {
-          totalAdj += result.value;
-          breakdown.push({
-            gridName: grid.name,
-            lookupKey: `${result.propertyLabel} @ LTV ${result.ltvLabel}`,
-            adjustment: result.value,
-          });
-          console.log(`[PRICING] ${grid.name}: ${result.propertyLabel} @ LTV ${ltv.toFixed(1)}% = ${result.value}`);
-        }
+    } else if (grid.type === 'property') {
+      const result = lookupPropertyAdjustment(grid, params.propertyType, ltv);
+      if (result) {
+        totalAdj += result.value;
+        breakdown.push({
+          gridName: grid.name,
+          lookupKey: `${result.propertyLabel} x LTV ${result.ltvLabel}`,
+          adjustment: result.value,
+        });
+        console.log(`[PRICING] Grid "${grid.name}": ${result.value} (${result.propertyLabel} x ${result.ltvLabel})`);
       }
-    }
-
-    // State adjustments - handles both simple state grids and State x LTV matrices
-    if (grid.type === 'state' && params.state) {
-      // 1. Find row matching the state (e.g. "CA", "NY", "FL")
-      let rowIndex = -1;
-      for (let i = 0; i < grid.axes.y.length; i++) {
-        const rowLabel = grid.axes.y[i].toUpperCase();
-        // Check for exact match or list match (e.g. "CT, DC, DE, IL" or "Group 2; CT, DC")
-        // Split by comma, slash, semicolon, or extra whitespace
-        const statesInRow = rowLabel.split(/[,/;\s]+/).map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
-        if (statesInRow.includes(params.state.toUpperCase())) {
-          rowIndex = i;
-          break;
-        }
-      }
-
-      if (rowIndex !== -1) {
-        // 2. Find column (usually just one value column, or LTV based)
-        // Default to column 0 if no LTV headers, otherwise lookup LTV
-        let colIndex = 0;
-        if (grid.axes.x.length > 1 && grid.axes.x.some(x => x.includes('%') || x.toLowerCase().includes('ltv'))) {
-          // Reuse LTV lookup logic if this is a State x LTV grid
-          for (let i = 0; i < grid.axes.x.length; i++) {
-            const range = parseLtvRange(grid.axes.x[i]);
-            if (range && ltv >= range.min && ltv <= range.max) {
-              colIndex = i;
-              break;
-            }
-          }
-        }
-
-        const value = grid.data[rowIndex]?.[colIndex];
-        if (typeof value === 'number') {
-          totalAdj += value;
-          breakdown.push({
-            gridName: grid.name,
-            lookupKey: `State ${params.state.toUpperCase()}`,
-            adjustment: value,
-          });
-          console.log(`[PRICING] ${grid.name}: State ${params.state.toUpperCase()} = ${value}`);
-        }
+    } else if (grid.type === 'state' && params.state) {
+      const adj = lookupStateAdjustment(grid, params.state);
+      if (adj !== 0) {
+        totalAdj += adj;
+        breakdown.push({
+          gridName: grid.name,
+          lookupKey: `State: ${params.state}`,
+          adjustment: adj,
+        });
+        console.log(`[PRICING] Grid "${grid.name}": ${adj} (State: ${params.state})`);
       }
     }
   }
 
+  console.log(`[PRICING] Total adjustments: ${totalAdj.toFixed(3)}`);
   return { total: totalAdj, breakdown };
 }
 
-function calculateMonthlyPayment(principal: number, annualRate: number, termYears: number): number {
+function getTermYears(loanTerm: string): number {
+  if (loanTerm === "15yr") return 15;
+  if (loanTerm === "20yr") return 20;
+  if (loanTerm === "25yr") return 25;
+  return 30;
+}
+
+function calculateMonthlyPayment(loanAmount: number, annualRate: number, termYears: number): number {
   const monthlyRate = annualRate / 100 / 12;
   const numPayments = termYears * 12;
-
-  if (monthlyRate === 0) {
-    return principal / numPayments;
-  }
-
-  return principal * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) /
+  if (monthlyRate === 0) return loanAmount / numPayments;
+  return loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) /
     (Math.pow(1 + monthlyRate, numPayments) - 1);
 }
 
-function calculateApr(
-  principal: number,
-  annualRate: number,
-  termYears: number,
-  totalFees: number
-): number {
-  const monthlyPayment = calculateMonthlyPayment(principal, annualRate, termYears);
-  const totalPayments = monthlyPayment * termYears * 12;
-  const totalInterest = totalPayments - principal;
-  const effectiveInterest = totalInterest + totalFees;
+function calculateApr(rate: number, pointsPercent: number, loanAmount: number, termYears: number): number {
+  const upfrontFee = (pointsPercent / 100) * loanAmount;
+  const effectiveLoanAmount = loanAmount - upfrontFee;
 
-  const apr = (effectiveInterest / principal) / termYears * 100;
-  return Math.round(apr * 1000) / 1000;
+  const monthlyRate = rate / 100 / 12;
+  const numPayments = termYears * 12;
+  const monthlyPayment = calculateMonthlyPayment(loanAmount, rate, termYears);
+
+  let aprGuess = rate;
+  for (let i = 0; i < 20; i++) {
+    const aprMonthlyRate = aprGuess / 100 / 12;
+    const pv = monthlyPayment * (1 - Math.pow(1 + aprMonthlyRate, -numPayments)) / aprMonthlyRate;
+    const diff = pv - effectiveLoanAmount;
+
+    if (Math.abs(diff) < 0.01) break;
+
+    const derivative = -monthlyPayment * numPayments * Math.pow(1 + aprMonthlyRate, -numPayments - 1) / aprMonthlyRate +
+      monthlyPayment * (1 - Math.pow(1 + aprMonthlyRate, -numPayments)) / (aprMonthlyRate * aprMonthlyRate);
+
+    aprGuess = aprGuess - (diff / derivative) * 100;
+  }
+
+  return aprGuess;
 }
 
-function getTermYears(loanTerm: string): number {
-  const match = loanTerm.match(/(\d+)/);
-  return match ? parseInt(match[1], 10) : 30;
-}
-
-interface RateOption {
-  rate: number;
-  basePrice: number;      // Raw price from rate sheet
-  netPrice: number;       // Net Price = Base Price - Margin - Adjustments
-  pointsPercent: number;
-  pointsDollar: number;
-  isCredit: boolean;
-}
-
-// NEW: Calculate Net Price for a given rate
-// Formula: Net Price = Base_Price - Margin - Adjustments
-function calculateNetPrice(basePrice: number, margin: number, totalAdjustments: number): number {
-  // Note: In the E-Lend grids, negative values = DEDUCTIONS from price
-  // So we ADD them (subtract negative = add)
-  return basePrice + totalAdjustments - margin;
-}
-
-// NEW: Solver function to find rate matching target net price
 function findRateForTargetPrice(
   rates: ParsedRate[],
-  targetNetPrice: number,
-  totalAdjustments: number,
-  params: LoanParameters
-): RateOption | null {
-  const termYears = getTermYears(params.loanTerm);
-  const loanTermKey = `${termYears}yr`;
+  targetPrice: number,
+  lockPeriod: 'price15Day' | 'price30Day' | 'price45Day',
+  direction: 'closest' | 'lower' | 'higher'
+): ParsedRate | null {
+  if (rates.length === 0) return null;
 
-  // Filter by term and type
-  let filteredRates = rates.filter(r =>
-    r.loanTerm === loanTermKey &&
-    (r.loanType === params.loanType || r.loanType === 'conventional')
-  );
+  let bestRate: ParsedRate | null = null;
+  let bestDiff = Infinity;
 
-  if (filteredRates.length === 0) {
-    const allForTerm = rates.filter(r => r.loanTerm === loanTermKey);
-    if (allForTerm.length === 0) return null;
-    filteredRates = allForTerm;
-  }
+  for (const rate of rates) {
+    const price = rate[lockPeriod];
+    const diff = Math.abs(price - targetPrice);
 
-  // Deduplicate rates - keep BEST price (highest wholesale) for each rate
-  const rateMap = new Map<number, ParsedRate>();
-  for (const r of filteredRates) {
-    const existing = rateMap.get(r.rate);
-    if (!existing || r.price15Day > existing.price15Day) {
-      rateMap.set(r.rate, r);
-    }
-  }
-  filteredRates = Array.from(rateMap.values());
-
-  // Calculate net price for each rate
-  const rateOptions: RateOption[] = filteredRates.map(r => {
-    const netPrice = calculateNetPrice(r.price15Day, LENDER_MARGIN, totalAdjustments);
-    const pointsRaw = 100 - netPrice;  // > 0 means customer pays points, < 0 means credit
-    const isCredit = pointsRaw < 0;
-    const pointsPercent = Math.abs(pointsRaw);
-    const pointsDollar = params.loanAmount * (pointsPercent / 100);
-
-    return {
-      rate: r.rate,
-      basePrice: r.price15Day,
-      netPrice,
-      pointsPercent: Math.round(pointsPercent * 1000) / 1000,
-      pointsDollar: Math.round(pointsDollar * 100) / 100,
-      isCredit,
-    };
-  });
-
-  // Find rate with net price closest to target
-  let closestOption: RateOption | null = null;
-  let closestDiff = Infinity;
-
-  for (const option of rateOptions) {
-    // [CONSTRAINT] Scenario Logic Checks
-
-    // 1. Credit Scenario (Target > 100): We expect the borrower to RECEIVE a credit
-    //    Net Price MUST be > 100.0 to be a true rebate. Par (100.0-100.25) should NOT qualify.
-    if (targetNetPrice > 100 && option.netPrice <= 100.0) {
-      continue;
-    }
-
-    // 2. Buydown Scenario (Target < 100): We expect the borrower to PAY points
-    //    Net Price MUST be < 100.0 to be a true cost. Par or rebate should NOT qualify.
-    if (targetNetPrice < 100 && option.netPrice >= 100.0) {
-      continue;
-    }
-
-    const diff = Math.abs(option.netPrice - targetNetPrice);
-    if (diff < closestDiff) {
-      closestDiff = diff;
-      closestOption = option;
+    if (direction === 'closest') {
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestRate = rate;
+      }
+    } else if (direction === 'lower') {
+      // For lower rate scenario, we want the lowest rate where price >= targetPrice
+      if (price >= targetPrice) {
+        if (!bestRate || rate.rate < bestRate.rate) {
+          bestRate = rate;
+        }
+      }
+    } else if (direction === 'higher') {
+      // CRITICAL FIX #4: For lender credit scenario, pick HIGHER rate where price <= targetPrice
+      // This ensures lender credit scenarios get a higher rate than par
+      if (price <= targetPrice) {
+        if (!bestRate || rate.rate > bestRate.rate) {
+          bestRate = rate;
+        }
+      }
     }
   }
 
-  return closestOption;
+  return bestRate;
 }
 
-// NEW: Main quote generation with solver logic
 async function generateQuoteFromRateSheet(
   parsedSheet: ParsedRateSheet,
   params: LoanParameters
 ): Promise<LenderQuote | null> {
-  if (!parsedSheet.parseSuccess || parsedSheet.rates.length === 0) {
-    return null;
-  }
-
-  console.log(`\n[PRICING] ========== Processing ${parsedSheet.lenderName} ==========`);
-
-  // Calculate total adjustments from REAL grids
-  const { total: totalAdjustments, breakdown } = calculateTotalAdjustments(
-    params,
-    parsedSheet.adjustments
+  const matchingRates = parsedSheet.rates.filter(r =>
+    r.loanTerm === params.loanTerm &&
+    r.loanType === params.loanType
   );
 
-  console.log(`[PRICING] Total LLPA Adjustments: ${totalAdjustments.toFixed(3)}`);
-  console.log(`[PRICING] Breakdown:`, breakdown);
-
-  const termYears = getTermYears(params.loanTerm);
-  const scenarios: PricingScenario[] = [];
-
-  // Scenario 1: PAR (Net Price ≈ 100.0)
-  const parOption = findRateForTargetPrice(parsedSheet.rates, TARGET_PAR, totalAdjustments, params);
-  if (parOption) {
-    const monthlyPayment = calculateMonthlyPayment(params.loanAmount, parOption.rate, termYears);
-    const baseFees = 1500;
-    const totalFees = parOption.isCredit ? Math.max(0, baseFees - parOption.pointsDollar) : baseFees + parOption.pointsDollar;
-    const apr = calculateApr(params.loanAmount, parOption.rate, termYears, totalFees);
-
-    scenarios.push({
-      rate: Math.round(parOption.rate * 1000) / 1000,
-      apr: Math.round(apr * 1000) / 1000,
-      monthlyPayment: Math.round(monthlyPayment * 100) / 100,
-      pointsPercent: parOption.pointsPercent,
-      pointsDollar: parOption.pointsDollar,
-      isCredit: parOption.isCredit,
-      scenarioLabel: parOption.isCredit ? "Par Rate (Small Credit)" : "Par Rate (No Points)",
-      netPrice: Math.round(parOption.netPrice * 1000) / 1000,
-      adjustmentBreakdown: breakdown,
-    });
-
-    console.log(`[PRICING] PAR: Rate ${parOption.rate}%, Base ${parOption.basePrice.toFixed(3)}, Net ${parOption.netPrice.toFixed(3)}, ${parOption.isCredit ? 'Credit' : 'Points'} ${parOption.pointsPercent.toFixed(3)}%`);
-  }
-
-  // Scenario 2: 1.5% Buydown (Net Price ≈ 98.5)
-  const buydownOption = findRateForTargetPrice(parsedSheet.rates, TARGET_BUYDOWN_1_5, totalAdjustments, params);
-  if (buydownOption && buydownOption.rate !== parOption?.rate) {
-    const monthlyPayment = calculateMonthlyPayment(params.loanAmount, buydownOption.rate, termYears);
-    const baseFees = 1500;
-    const totalFees = baseFees + buydownOption.pointsDollar;
-    const apr = calculateApr(params.loanAmount, buydownOption.rate, termYears, totalFees);
-
-    scenarios.push({
-      rate: Math.round(buydownOption.rate * 1000) / 1000,
-      apr: Math.round(apr * 1000) / 1000,
-      monthlyPayment: Math.round(monthlyPayment * 100) / 100,
-      pointsPercent: buydownOption.pointsPercent,
-      pointsDollar: buydownOption.pointsDollar,
-      isCredit: buydownOption.isCredit,
-      scenarioLabel: "Pay Points (Lower Rate)",
-      netPrice: Math.round(buydownOption.netPrice * 1000) / 1000,
-      adjustmentBreakdown: breakdown,
-    });
-
-    console.log(`[PRICING] BUYDOWN: Rate ${buydownOption.rate}%, Base ${buydownOption.basePrice.toFixed(3)}, Net ${buydownOption.netPrice.toFixed(3)}, Points ${buydownOption.pointsPercent.toFixed(3)}%`);
-  }
-
-  // Scenario 3: 0.5% Credit (Net Price ≈ 100.5)
-  const creditOption = findRateForTargetPrice(parsedSheet.rates, TARGET_CREDIT_0_5, totalAdjustments, params);
-  if (creditOption && creditOption.rate !== parOption?.rate) {
-    const monthlyPayment = calculateMonthlyPayment(params.loanAmount, creditOption.rate, termYears);
-    const baseFees = 1500;
-    const totalFees = Math.max(0, baseFees - creditOption.pointsDollar);
-    const apr = calculateApr(params.loanAmount, creditOption.rate, termYears, totalFees);
-
-    scenarios.push({
-      rate: Math.round(creditOption.rate * 1000) / 1000,
-      apr: Math.round(apr * 1000) / 1000,
-      monthlyPayment: Math.round(monthlyPayment * 100) / 100,
-      pointsPercent: creditOption.pointsPercent,
-      pointsDollar: creditOption.pointsDollar,
-      isCredit: creditOption.isCredit,
-      scenarioLabel: "Receive Lender Credit",
-      netPrice: Math.round(creditOption.netPrice * 1000) / 1000,
-      adjustmentBreakdown: breakdown,
-    });
-
-    console.log(`[PRICING] CREDIT: Rate ${creditOption.rate}%, Base ${creditOption.basePrice.toFixed(3)}, Net ${creditOption.netPrice.toFixed(3)}, Credit ${creditOption.pointsPercent.toFixed(3)}%`);
-  }
-
-  if (scenarios.length === 0) {
-    console.log(`[PRICING] No scenarios could be generated for ${parsedSheet.lenderName}`);
+  if (matchingRates.length === 0) {
+    console.log(`[PRICING] No rates found for ${params.loanTerm} ${params.loanType} from ${parsedSheet.lenderName}`);
     return null;
   }
 
-  console.log(`[PRICING] Generated ${scenarios.length} scenarios for ${parsedSheet.lenderName}`);
+  console.log(`[PRICING] ${parsedSheet.lenderName}: Found ${matchingRates.length} matching rates`);
+
+  const { total: totalAdjustments, breakdown } = calculateTotalAdjustments(params, parsedSheet.adjustments);
+
+  const adjustedRates = matchingRates.map(rate => ({
+    ...rate,
+    price15Day: rate.price15Day + totalAdjustments,
+    price30Day: rate.price30Day + totalAdjustments,
+    price45Day: rate.price45Day + totalAdjustments,
+  }));
+
+  const lockPeriod: 'price15Day' | 'price30Day' | 'price45Day' = 'price30Day';
+  const termYears = getTermYears(params.loanTerm);
+
+  // Par Rate (closest to 100)
+  const parRate = findRateForTargetPrice(adjustedRates, TARGET_PAR, lockPeriod, 'closest');
+
+  // 1.5% Buydown (closest to 98.5, prefer lower rates)
+  const buydownRate = findRateForTargetPrice(adjustedRates, TARGET_BUYDOWN_1_5, lockPeriod, 'lower');
+
+  // 0.5% Lender Credit (closest to 100.5, MUST be higher rate than par)
+  const creditRate = findRateForTargetPrice(adjustedRates, TARGET_CREDIT_0_5, lockPeriod, 'higher');
+
+  if (!parRate) {
+    console.log(`[PRICING] ${parsedSheet.lenderName}: No par rate found`);
+    return null;
+  }
+
+  const scenarios: PricingScenario[] = [];
+
+  // Par Scenario
+  const parPrice = parRate[lockPeriod];
+  const parPoints = 100 - parPrice;
+  scenarios.push({
+    rate: parRate.rate,
+    apr: calculateApr(parRate.rate, parPoints, params.loanAmount, termYears),
+    monthlyPayment: calculateMonthlyPayment(params.loanAmount, parRate.rate, termYears),
+    pointsPercent: parPoints,
+    pointsDollar: (parPoints / 100) * params.loanAmount,
+    isCredit: parPoints < 0,
+    scenarioLabel: "Best Available Rate (Par)",
+    netPrice: parPrice,
+    adjustmentBreakdown: breakdown,
+  });
+
+  // Buydown Scenario
+  if (buydownRate) {
+    const buydownPrice = buydownRate[lockPeriod];
+    const buydownPoints = 100 - buydownPrice;
+    scenarios.push({
+      rate: buydownRate.rate,
+      apr: calculateApr(buydownRate.rate, buydownPoints, params.loanAmount, termYears),
+      monthlyPayment: calculateMonthlyPayment(params.loanAmount, buydownRate.rate, termYears),
+      pointsPercent: buydownPoints,
+      pointsDollar: (buydownPoints / 100) * params.loanAmount,
+      isCredit: false,
+      scenarioLabel: "Pay 1.5 Points (Lowest Rate)",
+      netPrice: buydownPrice,
+      adjustmentBreakdown: breakdown,
+    });
+  }
+
+  // Lender Credit Scenario
+  if (creditRate && creditRate.rate > parRate.rate) {
+    const creditPrice = creditRate[lockPeriod];
+    const creditPoints = 100 - creditPrice;
+    scenarios.push({
+      rate: creditRate.rate,
+      apr: calculateApr(creditRate.rate, creditPoints, params.loanAmount, termYears),
+      monthlyPayment: calculateMonthlyPayment(params.loanAmount, creditRate.rate, termYears),
+      pointsPercent: creditPoints,
+      pointsDollar: (creditPoints / 100) * params.loanAmount,
+      isCredit: true,
+      scenarioLabel: "Receive 0.5 Point Credit",
+      netPrice: creditPrice,
+      adjustmentBreakdown: breakdown,
+    });
+  }
+
+  const basePrice = matchingRates[0]?.price30Day || 100;
+  const adjustedPrice = basePrice + totalAdjustments;
 
   return {
     lenderName: parsedSheet.lenderName,
     scenarios,
-    basePrice: parOption?.basePrice || 100,
-    adjustedPrice: parOption?.netPrice || 100,
+    basePrice,
+    adjustedPrice,
     totalAdjustments,
   };
 }
 
-function validatePricingResult(result1: PricingResult, result2: PricingResult): boolean {
-  if (result1.quotes.length !== result2.quotes.length) {
-    console.error("Validation failed: quote count mismatch");
+function validatePricingResult(pass1: PricingResult, pass2: PricingResult): boolean {
+  if (pass1.quotes.length !== pass2.quotes.length) {
+    console.error(`Validation failed: different number of quotes (${pass1.quotes.length} vs ${pass2.quotes.length})`);
     return false;
   }
 
-  for (let i = 0; i < result1.quotes.length; i++) {
-    const q1 = result1.quotes[i];
-    const q2 = result2.quotes[i];
+  for (let i = 0; i < pass1.quotes.length; i++) {
+    const quote1 = pass1.quotes[i];
+    const quote2 = pass2.quotes[i];
 
-    if (q1.lenderName !== q2.lenderName) {
-      console.error("Validation failed: lender name mismatch");
+    if (quote1.lenderName !== quote2.lenderName) {
+      console.error(`Validation failed: lender name mismatch at index ${i}`);
       return false;
     }
 
-    for (let j = 0; j < q1.scenarios.length; j++) {
-      const s1 = q1.scenarios[j];
-      const s2 = q2.scenarios[j];
+    if (quote1.scenarios.length !== quote2.scenarios.length) {
+      console.error(`Validation failed: different number of scenarios for ${quote1.lenderName}`);
+      return false;
+    }
 
-      if (Math.abs(s1.rate - s2.rate) > 0.001) {
-        console.error(`Validation failed: rate mismatch ${s1.rate} vs ${s2.rate}`);
-        return false;
-      }
+    for (let j = 0; j < quote1.scenarios.length; j++) {
+      const scenario1 = quote1.scenarios[j];
+      const scenario2 = quote2.scenarios[j];
 
-      if (Math.abs(s1.monthlyPayment - s2.monthlyPayment) > 0.01) {
-        console.error(`Validation failed: payment mismatch ${s1.monthlyPayment} vs ${s2.monthlyPayment}`);
+      if (Math.abs(scenario1.rate - scenario2.rate) > 0.001) {
+        console.error(`Validation failed: rate mismatch for ${quote1.lenderName} scenario ${j}`);
         return false;
       }
     }
