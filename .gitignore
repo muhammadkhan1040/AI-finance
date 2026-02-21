@@ -127,3 +127,7 @@ Thumbs.db
 # Replit
 .replit
 replit.md
+
+# Claude
+Claude.md
+.claude
